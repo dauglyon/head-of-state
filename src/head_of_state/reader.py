@@ -549,6 +549,9 @@ def main():
     ap.add_argument("--demo", action="store_true", help="run the built-in support-call stream")
     ap.add_argument("--text", help="path to a text file to label instead of the demo")
     ap.add_argument("--states", help="path to a JSON file {name: description}")
+    ap.add_argument("--segment-length", type=float, default=30.0,
+                    help="declared typical segment length in tokens (default 30); sets the transition model\n"
+                         "of the settled labels and how far their readings are moved back (0.2x)")
     ap.add_argument("--save-readings", help="write every reading (state log-probabilities, orderings "
                     "averaged), its position and the gold states to this JSON file, for offline decoding")
     a = ap.parse_args()
@@ -592,7 +595,21 @@ def main():
         span = f"{r.start}-{r.pos}" if r.start != r.pos else f"{r.pos}"
         print(f"{span:>9} {word!r:>16}  {names[r.state]:<16} p={max(r.probs):.2f}{mark}")
     if gold:
-        print(score(reader.readings, gold))
+        print("live:", score(reader.readings, gold))
+    # Settled labels: the best path over all readings, each reading moved back 0.2x the segment length
+    from .settle import settled_labels
+    rp = np.asarray([r.probs for r in reader.readings])
+    rpos = [r.pos for r in reader.readings]
+    lab = settled_labels(rp, rpos, a.segment_length, int(round(0.2 * a.segment_length)))
+    print("settled segments:")
+    start = 1
+    for i in range(len(lab)):
+        if i == len(lab) - 1 or lab[i + 1] != lab[i]:
+            print(f"  tokens {start:>5d}-{rpos[i]:<5d} {names[lab[i]]}")
+            start = rpos[i] + 1
+    if gold:
+        settled = [Reading(x, [], int(l), int(l), i > 0 and l != lab[i - 1]) for i, (x, l) in enumerate(zip(rpos, lab))]
+        print("settled token accuracy:", round(score(settled, gold)["accuracy_committed"], 4))
     if a.save_readings:
         import json
         rec = {"id": a.text or "demo", "kind": "posterior", "states": names, "n_tokens": len(ids),

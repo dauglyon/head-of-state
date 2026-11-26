@@ -57,6 +57,15 @@ under 128 tokens). A reading at every token with 2 orderings costs 150 ms per to
 - Fixed-lag forward-backward smoothing and a surprisal-modulated switch probability were also built in
   `decoders.py`; neither improved on the decoders above in the tests so far.
 
+## Settled labels and time to notice
+
+A stream read left to right can only notice a switch once enough of the new text has arrived. The
+output is therefore judged on its settled labels (`head_of_state.settle.settled_labels`): Viterbi over
+all readings, with each reading treated as evidence for the state 0.2× the declared segment length
+earlier, because a reading describes the last few sentences and runs behind the text. Time to notice,
+from the online decision with no lookahead, is reported beside it and is not counted as error. On the
+demo the settled switches land within 4 tokens of the true ones.
+
 ## How switches are scored
 
 A true switch is found only by a decoder switch event into the new state; staying in a state

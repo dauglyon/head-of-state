@@ -477,3 +477,31 @@ given in this repository's layout and reproduce from the same code.
      `finish()`; runs made before this miss up to the last stride − 1 tokens per stream.
 - Tests: `tests/test_reader.py`, case 12 (unread segments counted as missed, decision-time delay, a
   sticky transition across 8-token gaps).
+
+**2026-11-25 · Revised judging (settled labels) and the held-out confirmation**
+- Judging, revised before the held-out samples were scored and recorded in `docs/TEST_SUITE.md`:
+  - The output is judged on its settled labels: Viterbi over all readings, each reading treated as
+    evidence for the state round(0.2 × declared length) tokens earlier. The code is
+    `head_of_state.settle`.
+  - Time to notice (the online decision, no lookahead) is reported beside it and not counted as error,
+    because a stream read left to right cannot know what comes next.
+  - Reason: the earlier scoring compared a live labeller with hindsight gold. At "Okay, let's…" the
+    readings correctly answer "problem" about the previous sentences, so the first tokens of every new
+    segment were counted as errors that no left-to-right reader can avoid.
+- Commands: `H2O_LIGHTNING_PATH=<checkout> uv run python -I experiments/scored_heldout.py run S3|ACI|S2`;
+  `uv run python -I experiments/settled_judging.py` → `results/settled_judging.md`;
+  `uv run python -I experiments/scored_heldout.py report` → `results/scored_heldout.md` (live decoders)
+- Result, held-out samples (H2O-Lightning-4B, every token, 1 ordering; about 100 ms per token):
+
+  | Sample | settled accuracy | boundary F1 ±8 / ±16 | switches placed within 16 tokens | spurious per 1k | time to notice |
+  |---|---|---|---|---|---|
+  | PubMed test abstracts 31–60 | 0.788 | 0.51 / 0.57 | 63 of 95 | 4.5 | 22.8 tokens |
+  | ACI-Bench encounters 11–20 | 0.868 | 0.56 / 0.58 | 199 of 476 | 0.7 | 5.1 tokens |
+  | 2 null streams (symptom, cause) | 0.468 | — | — | 7.0 | — |
+
+  Live labels with the forward filter, for comparison: 0.750 (PubMed) and 0.841 (ACI-Bench).
+- Result, demo with settled labels: switches at tokens 51 / 95 / 167 / 214 against true 49 / 97 / 163 /
+  213; settled token accuracy 0.963 (live 0.841).
+- Conclusion: once corrected labels are judged, most of the apparent lag disappears. What remains is
+  the time to notice, set by how soon the text reveals the change. Short conversational turns are still
+  mostly missed, and related states (symptom, cause) are still often confused.

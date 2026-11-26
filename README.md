@@ -20,40 +20,41 @@ closing          wrapping up and saying goodbye
 The text passes once through an open-weights language model and stays in its key/value cache. At each
 reading point it takes a Jev-style readout: a short multiple-choice question about the most recent text
 is appended, the probabilities the model's output head gives the answer options are the reading, and the
-question is then removed from the cache. An HMM-like filter (persist rule, sticky forward filter or
-fixed-lag Viterbi) turns the readings into segments. The default model is H2O-Lightning-4B, an
-open-weights Qwen3.5-4B fine-tuned to answer choice questions about a record; other open-weights causal
-language models work through `--model`.
+question is then removed from the cache. An HMM-like decoder turns the readings into segments: once a
+switch has been noticed, Viterbi decoding corrects the labels of the tokens before it, so the settled
+segments start where the new state began rather than where it was noticed. The default model is
+H2O-Lightning-4B, an open-weights Qwen3.5-4B fine-tuned to answer choice questions about a record; other
+open-weights causal language models work through `--model`.
 
 **Status: early prototype, with no settled use case yet.** Descriptions of problems that resemble this
 one are welcome in the issue tracker.
 
 ## Results so far
 
-**Under revision:** an audit on 2026-11-25 found scoring problems; the corrected, held-out numbers replace this
-table shortly (`docs/LOG.md`). Preliminary, from small samples, on one 12 GB GPU, with Qwen3.5-4B unless the row names H2O-Lightning-4B. The first four rows are scored runs with
-settings fixed beforehand; the others are tuning or exploration runs. Every run is in `docs/LOG.md`.
+Held-out samples, read at every token by H2O-Lightning-4B on one 12 GB GPU (about 100 ms per token). The
+model, settings and judging rule were fixed before these samples were run (`docs/TEST_SUITE.md`). Labels are
+judged after the decoder has corrected them (settled labels). Time to notice is how many tokens after a true
+switch the live output first shows the new state; a stream read left to right cannot know sooner, so it is
+reported and not counted as error.
 
-| Data (sample) | Result |
-|---|---|
-| PubMed 20k RCT abstracts, test (30 abstracts, 98 switches, 5 states), frozen settings: every 8th token | token accuracy 0.71; 83 of 98 switches found, 31 tokens late on average; 8.2 spurious switches per 1,000 tokens; 14 ms per token |
-| Same PubMed test abstracts, read through H2O-Lightning-4B (a decision-tuned Qwen3.5-4B) | token accuracy 0.76; 85 of 98 switches found, 23 tokens late on average; 7.2 spurious switches per 1,000 tokens; 13 ms per token |
-| Doctor–patient conversations, ACI-Bench test (10 encounters, 11,921 tokens, 2 speaker states), H2O-Lightning-4B | token accuracy 0.84; turn changes that are caught are caught about 6 tokens after they happen, but only 190 of 545 are caught, because many turns (median 12 tokens) end before the next reading; 2.6–4.8 spurious switches per 1,000 tokens |
-| Single-state streams, WikiSection disease articles, test (4 streams, 15,039 tokens) | 5.3 false switches per 1,000 tokens with the forward filter; the true state held for 48–95% of tokens, depending on the state |
-| Support-call demo (245 tokens, 4 switches), either model | token accuracy 0.84; 4 of 4 switches found, 10 tokens late on average; no spurious switches |
-| PubMed 20k RCT abstracts, dev, tuning data (10 abstracts, 36 switches, 5 states) | token accuracy 0.79–0.80; switches committed about 23 tokens late (a median sentence is 30 tokens); 5.8 spurious switches per 1,000 tokens, 1–2 with fixed-lag Viterbi |
-| WikiSection disease articles, test (12 streams, one switch each, 10 states offered) | token accuracy 0.88 around the switch; switches about 24 tokens late, not growing over 50 to 3,000 tokens of earlier text |
-| WikiSection disease articles, validation (2 streams, 15 switches, 10 states) | token accuracy 0.56–0.58; more than 2 spurious switches per 1,000 tokens with every decoder tried |
-| Cost per token | 150 ms reading every token; 14–20 ms reading every 8th token, which matched the every-token accuracy on the demo and PubMed dev |
+| Data (held-out sample) | Token accuracy | Switches placed within 16 tokens | False switches per 1,000 tokens | Time to notice |
+|---|---|---|---|---|
+| PubMed 20k RCT abstracts, test (30 abstracts, 5 states) | 0.79 | 63 of 95 | 4.5 | 23 tokens |
+| Doctor–patient conversations, ACI-Bench test (10 encounters, 2 speaker states) | 0.87 | 199 of 476 | 0.7 | 5 tokens |
+| Single-state streams, WikiSection disease articles (2 streams, 6,550 tokens) | 0.47 | — | 7.0 | — |
 
-`--refine` adds bisection readings between two disagreeing readings. On speaker turns it placed switches more
-precisely (boundary F1 within 2 tokens 0.24 → 0.39) at 18 instead of 13 ms per token, but did not make decisions
-earlier; on PubMed sections it did not help.
+Known limits:
+- **Short segments are missed.** Most conversational turns are short (median 12 tokens), and the turn often
+  ends before the model can tell it apart; 58% of turn changes are missed.
+- **Related states are confused.** In the single-state streams, "symptom" and "cause" sections are often read
+  as epidemiology or mechanism, so the true state holds for under half of the tokens.
+- **Time to notice depends on the text.** Speaker changes show within about 5 tokens; a new section of an
+  abstract takes about 23 tokens, most of a sentence.
+- **Cost.** About 100 ms per token when reading every token. Reading every 8th token (`--stride 8 --persist 1`)
+  is about 7 times cheaper; its labels are assigned to the 8 tokens before each reading.
 
-Known limits: switches are detected late. On PubMed abstracts the readings turn about 16 tokens after
-the true switch, and showing the question only the last 30–120 tokens does not shorten this. Many similar
-states (ten disease-article section types) are hard. Readouts built on next-token likelihood or on
-activation directions have been weaker than the question so far.
+Earlier exploratory, tuning and comparison runs (other models, readouts, decoders and settings) are in
+`docs/LOG.md`, with an audit of the scoring and its corrections.
 
 ## Run the demo
 
@@ -64,7 +65,8 @@ uv run head-of-state --demo --stride 8 --rotations 1 --persist 1   # read every 
 uv run python tests/test_reader.py        # mechanics tests on tiny random models
 ```
 
-Own states and text: `--states states.json` (`{"name": "description", ...}`) and `--text file.txt`. Another
+A run prints the live readings, then the settled segments. Own states and text: `--states states.json`
+(`{"name": "description", ...}`), `--text file.txt` and `--segment-length <tokens>`. Another
 model or a local checkout: `--model <id or path>`, e.g. `--model Qwen/Qwen3.5-4B`.
 
 Method and decoder notes: `docs/method.md`. Experiment log: `docs/LOG.md`; planned experiments:
