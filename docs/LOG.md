@@ -691,3 +691,24 @@ given in this repository's layout and reproduce from the same code.
 - Conclusion: as the literature in HANDOFF expects, decoding changes stability far more than accuracy:
   Viterbi removes about 90% of the raw readings' false switches and adds 1–2.5 points of accuracy. Raw
   argmax places the most switches within 16 tokens only because it switches so often.
+
+**2026-11-26 · Settled labels from the evidence each reading adds**
+- Declared in `docs/TEST_SUITE.md` before scoring the sets below. Command: `uv run python -I
+  experiments/joined_evidence.py > results/joined_evidence.md`
+- Reason: a reading is the model's answer given all text so far, a running estimate of the state, which is
+  what an HMM's forward pass produces. Decoding readings as evidence counts the history again at every token
+  (why the decoder length barely mattered, and why consecutive readings acted as repeated evidence). The
+  forward identity estimate_t ∝ evidence_t × (estimate_{t-1} A) gives evidence_t ∝ reading_t / (reading_{t-1}
+  A); Viterbi decodes that with the declared segment length (`settle.reading_evidence`).
+- The A in that identity is how fast the readings themselves change, a property of the model and question.
+  Chosen once on the seed-0 streams from 10 / 20 / 50 tokens: 20.
+- Result, current settled labels → recovered evidence (sets not used to choose it; every token):
+  - AG News (seed 2): accuracy 0.874 → 0.850, placed within 16 tokens 10 → 8 of 18, false switches 2.4 → 0.9
+    per 1k
+  - WikiSection (seed 2): 0.655 → 0.705, 5 → 5 of 11, 5.3 → 1.3
+  - IMDB (seed 2): 0.809 → 0.838, 5 → 5 of 15, 2.4 → 1.5
+  - PubMed abstracts 31–60: 0.776 → 0.783, 63 → 53 of 95, 4.9 → 2.2
+  - single-state streams (seed 1): 0.468 → 0.574, false switches 7.2 → 2.1
+- Conclusion: false switches fall by 40–75% on every set and accuracy rises on four of five (AG News loses
+  2.4 points); a few switches are placed further off. Adopted as the tool's settled labels (CLI); the demo
+  settles at 0.894 token accuracy. README results updated.
