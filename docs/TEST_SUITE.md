@@ -58,6 +58,8 @@ Joined labelled documents, confirmation (declared 2026-11-26, before the run): t
 
 Joined labelled documents, targeted question (declared 2026-11-26, before the run): tuning comparison on the seed-0 streams, the current question against the current sentence as its own part of the record with a direct question and neutral option names, every token, settled labels without shift. If it is better on the tuning streams, it is confirmed on 3 new streams per list (seed 3, documents not in the seed-0 streams) before any change of default.
 
+Reading weight eta (declared 2026-11-26, before scoring the confirmation streams with it): each reading's probabilities raised to eta = 1/8 before decoding (the per-frame scale used for correlated frame posteriors in hybrid neural-network/HMM speech recognisers), chosen on the seed-0 joined-document streams from 1, 1/2, 1/4, 1/8, 1/16. Checked on the saved seed-2 readings, every token, settled labels and time to notice, against eta = 1 (`experiments/joined_eta.py`).
+
 Windowed likelihood emissions (HANDOFF Q3 extended, added 2026-11-25): W = 0.0625 x declared segment length (S3: 2 tokens, S1: 12 tokens), hop W/2, sticky forward filter with eta = 1 and switch probability 1/L. Chosen before scored runs by mean committed accuracy over the tuning sets (first 10 PubMed 20k RCT dev abstracts; 2 WikiSection en_disease validation streams), from 0.0625 / 0.125 / 0.25 / 0.5 / 1 / 2 x and no window (`eval/exp_window.py`). The same W applies to the windowed question method (experiment E).
 
 ## Sets

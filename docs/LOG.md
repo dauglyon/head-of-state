@@ -669,3 +669,15 @@ given in this repository's layout and reproduce from the same code.
 - Conclusion: consecutive readings are not independent evidence, and the decoder treats them as if they
   were. Reading every token buys earlier noticing only; settled labels are as good or better from a reading
   every 4th–8th token at a quarter to an eighth of the cost.
+
+**2026-11-26 · Reading weight η = 1/8, checked on the confirmation streams (offline)**
+- Declared in `docs/TEST_SUITE.md` before scoring. Command: `uv run python -I experiments/joined_eta.py >
+  results/joined_eta.md`
+- Result, η = 1 → 1/8 on the saved seed-2 readings (every token):
+  - AG News: accuracy 0.874 → 0.879, placed within 16 tokens 10 → 8 of 18, false switches 2.4 → 1.6 per
+    1k, time to notice 30 → 56 tokens
+  - WikiSection: 0.655 → 0.669, 5 → 5 of 11, 5.3 → 2.1, 92 → 197
+  - IMDB: 0.809 → 0.833, 5 → 4 of 15, 2.4 → 1.7, 55 → 90
+- Conclusion: a trade, not a gain: slightly higher accuracy and 30–60% fewer false switches for much later
+  noticing and a few switches placed further off. The default stays η = 1; the trade is the same one a
+  longer reading interval gives at lower cost.
