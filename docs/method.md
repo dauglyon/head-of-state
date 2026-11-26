@@ -24,7 +24,11 @@ but the scores are read from a frozen language model rather than learned emissio
    attributes are restored afterwards.
 6. With `stride` N, the N stream tokens since the last reading are fed in one pass just before the
    next reading. A one-token pass and an N-token pass cost about the same (both are dominated by
-   reading the weights), so the cost per token falls almost N-fold.
+   reading the weights), so the cost per token falls almost N-fold. Every token is still labelled:
+   a reading labels the tokens since the previous reading (`Reading.start` to `Reading.pos`), and
+   `finish()` takes a last reading for tokens left at the end of the stream. A token's label therefore
+   arrives up to N − 1 tokens after the token. `persist` counts readings, so it shrinks with the
+   stride: every 8th token with `persist` 1 matched every token with `persist` 3 in tests.
 
 Cost on an RTX 3060 (12 GB) with Qwen3.5-4B: one stream token 31 ms; one question pass about 66 ms at
 113 tokens, 69 ms at 128 tokens, 96 ms at 129–130 tokens (a matrix-tiling step: keep questions at or

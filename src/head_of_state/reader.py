@@ -52,6 +52,8 @@ class Reading:
     raw: int                    # likeliest state at N
     state: int                  # committed state at N (after the persistence rule)
     switched: bool              # True if the committed state changed at this reading
+    start: int | None = None    # first token position this reading labels (None: only `pos`); with
+                                # stride N a reading labels the tokens since the previous reading
 
 
 @dataclass
@@ -134,6 +136,7 @@ class StreamStateReader:
         self.stream: list[int] = []
         self._pending: list[int] = []
         self.readings = []
+        self._last_read = 0
         self._prior = torch.full((self.K,), 1.0 / self.K)
         self._n_prior = 0
         self._committed = None
@@ -288,14 +291,31 @@ class StreamStateReader:
             self.stream.append(t)
             self._pending.append(t)
             if len(self.stream) % self.stride == 0:
-                self.flush()
-                p = self._read()
-                raw = int(p.argmax())
-                state, sw = self._commit(raw)
-                r = Reading(len(self.stream), p.tolist(), raw, state, sw)
-                self.readings.append(r)
-                new.append(r)
+                new.append(self._reading())
         return new
+
+    def finish(self) -> list[Reading]:
+        """End of stream: take one more reading if tokens arrived after the last one, so that every
+        token is labelled."""
+        return [self._reading()] if len(self.stream) > self._last_read else []
+
+    def _reading(self) -> Reading:
+        self.flush()
+        p = self._read()
+        raw = int(p.argmax())
+        state, sw = self._commit(raw)
+        r = Reading(len(self.stream), p.tolist(), raw, state, sw, start=self._last_read + 1)
+        self._last_read = len(self.stream)
+        self.readings.append(r)
+        return r
+
+    @staticmethod
+    def token_states(readings: list[Reading]) -> list[int]:
+        """Committed state of every token, expanded from readings that each label a span of tokens."""
+        out = []
+        for r in readings:
+            out += [r.state] * (r.pos - (r.start or r.pos) + 1)
+        return out
 
     def push_text(self, text: str) -> list[Reading]:
         return self.push_tokens(self._enc(text))
@@ -317,8 +337,11 @@ def score(readings: list[Reading], gold: list[int]) -> dict:
     if not readings:
         return {}
     g = [gold[r.pos - 1] for r in readings]
-    acc_raw = sum(r.raw == y for r, y in zip(readings, g)) / len(g)
-    acc_com = sum(r.state == y for r, y in zip(readings, g)) / len(g)
+    # Token accuracy counts every token a reading labels (all tokens since the previous reading).
+    spans = [range((r.start or r.pos) - 1, r.pos) for r in readings]
+    n_tok = sum(len(sp) for sp in spans)
+    acc_raw = sum(gold[t] == r.raw for r, sp in zip(readings, spans) for t in sp) / n_tok
+    acc_com = sum(gold[t] == r.state for r, sp in zip(readings, spans) for t in sp) / n_tok
     true_sw = [i for i in range(1, len(g)) if g[i] != g[i - 1]]
     # A true switch is found only by a commit event into its new state inside its segment.
     # Matching on the committed state alone would credit a tool that never left the state the
@@ -424,9 +447,15 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     ap.add_argument("--model", default="Qwen/Qwen3.5-4B",
                     help="any Hugging Face causal LM; 4B parameters or more is recommended")
-    ap.add_argument("--stride", type=int, default=1)
-    ap.add_argument("--rotations", type=int, default=2)
-    ap.add_argument("--persist", type=int, default=3)
+    ap.add_argument("--stride", type=int, default=1,
+                    help="read the regime every Nth token (default 1: every token); the tokens since the\n"
+                         "previous reading are fed in one pass and take the next reading's label, so the\n"
+                         "cost per token falls about N-fold. 4 to 8 kept accuracy in tests (docs/LOG.md)")
+    ap.add_argument("--rotations", type=int, default=2,
+                    help="option orderings averaged per reading (default 2); 1 matched 2 in tests")
+    ap.add_argument("--persist", type=int, default=3,
+                    help="readings a new regime must lead before it is committed (default 3). Counts\n"
+                         "readings, not tokens: with --stride 8 use --persist 1")
     ap.add_argument("--prior-power", type=float, default=0.0)
     ap.add_argument("--demo", action="store_true", help="run the built-in support-call stream")
     ap.add_argument("--text", help="path to a text file to label instead of the demo")
@@ -455,10 +484,11 @@ def main():
     else:
         ids, gold = build_stream(tok, DEMO_SEGMENTS, names)
 
-    for r in reader.push_tokens(ids):
+    for r in reader.push_tokens(ids) + reader.finish():
         mark = "  <-- switch" if r.switched else ""
         word = tok.decode([ids[r.pos - 1]]).replace("\n", "\\n")
-        print(f"{r.pos:5d} {word!r:>16}  {names[r.state]:<16} p={max(r.probs):.2f}{mark}")
+        span = f"{r.start}-{r.pos}" if r.start != r.pos else f"{r.pos}"
+        print(f"{span:>9} {word!r:>16}  {names[r.state]:<16} p={max(r.probs):.2f}{mark}")
     if gold:
         print(score(reader.readings, gold))
     if a.save_readings:

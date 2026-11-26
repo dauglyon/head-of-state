@@ -173,3 +173,19 @@ given in this repository's layout and reproduce from the same code.
   - Placement moves toward the readings' own lag on the demo but not on PubMed.
   - The geometric-duration assumption does not visibly hurt (no surviving short segments), so an
     explicit-duration decoder is not needed yet.
+
+**2026-11-25 · Reading interval adopted as a parameter**
+- Decision (owner): a reading every 4th–8th token is acceptable, kept as the `stride` parameter
+  (`--stride`). The default stays at every token.
+- Change: each reading now labels every token since the previous reading, and `finish()` reads the
+  tail, so every token gets a label. Token accuracy in `score()` counts every labelled token. Tested in
+  `tests/test_reader.py`, case 9.
+- Commands: `uv run head-of-state --demo --stride 8 --rotations 1 --persist 1` (and `--persist 2`, `3`);
+  PubMed dev persist × stride replayed offline from `experiments/runs/s3_dev_r5.jsonl`.
+- Result:
+  - Demo, every 8th token, 1 ordering, persist 1: committed accuracy 0.894, 4 of 4 switches, mean delay
+    8 tokens, 0 spurious. With persist 3 at the same stride: 0.645, 3 of 4, 18.7 tokens.
+  - PubMed dev (10 abstracts), 1 ordering, every 8th token, persist 1: 0.795 accuracy, 19.3-token
+    delay, 7.1 spurious per 1k. Every token, persist 3: 0.779, 22.5, 7.7.
+- Conclusion: `persist` counts readings, so it has to shrink with the stride. Every 8th token with
+  persist 1 matches every token with persist 3 at about a seventh of the cost.

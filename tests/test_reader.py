@@ -194,4 +194,16 @@ for lag in (0, 2, 5, 100):
     if lag >= 7:
         assert out == list(best)
 print("8   ok  fixed-lag Viterbi: offline path is the brute-force best path; one label per position at every lag")
+
+# 9: a reading interval (stride) still labels every token: each reading covers the tokens since the
+#    previous one, finish() reads the tail, and token accuracy counts every covered token.
+rs = StreamStateReader(model, tok, DEMO_STATES, stride=7, rotations=1, max_ctx=4096)
+got = rs.push_tokens(ids[:60]) + rs.finish()
+assert [r.pos for r in got] == [7, 14, 21, 28, 35, 42, 49, 56, 60], [r.pos for r in got]
+assert [r.start for r in got] == [1, 8, 15, 22, 29, 36, 43, 50, 57]
+assert rs.finish() == [] and len(StreamStateReader.token_states(got)) == 60
+labels = StreamStateReader.token_states(got)
+m = score(got, gold[:60])
+assert abs(m["accuracy_committed"] - sum(a == b for a, b in zip(labels, gold[:60])) / 60) < 1e-9
+print("9   ok  stride 7: every token labelled by the reading that follows it; token accuracy over all 60 tokens")
 print("all mechanics tests passed")

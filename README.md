@@ -17,7 +17,7 @@ readings into regime labels. No weights change and nothing is fitted per problem
 | PubMed 20k RCT dev (10 abstracts, 36 switches, 5 regimes) | token accuracy 0.79–0.80; switches detected about 23 tokens late with the persist rule (a median sentence is 30 tokens); 5.8 spurious switches per 1,000 tokens, 1–2 with fixed-lag Viterbi |
 | WikiSection en_disease test (12 streams, one symptom→treatment switch each, 10 regimes offered) | token accuracy 0.88 around the switch; switches detected about 24 tokens late, with no growth over 50 to 3,000 tokens of earlier text (3 streams per length) |
 | WikiSection en_disease validation (2 streams, 15 switches, 10 regimes) | token accuracy 0.56–0.58; no decoder setting kept spurious switches under 2 per 1,000 tokens |
-| Cost per token | 150 ms reading every token with 2 option orderings; 14–20 ms reading every 8th token with 1 ordering |
+| Cost per token | 150 ms reading every token with 2 option orderings (default); 14–20 ms reading every 8th token with 1 ordering, which on the demo and PubMed sets matched the default's accuracy |
 
 Known limits: switches are detected late, because each reading sees the whole history; readouts built
 on next-token likelihood instead of a question have so far been weaker (see `docs/LOG.md`).
@@ -27,6 +27,7 @@ on next-token likelihood instead of a question have so far been weaker (see `doc
 ```
 uv sync
 uv run head-of-state --demo
+uv run head-of-state --demo --stride 8 --rotations 1 --persist 1   # read every 8th token: about 7x cheaper
 uv run python tests/test_reader.py        # mechanics tests on tiny random models
 ```
 
