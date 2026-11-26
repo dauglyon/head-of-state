@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/assets/logo/head-of-state-logo.svg" width="120" alt="Head of State logo"></p>
+
 # Head of State
 
 Zero-shot regime tracking, read from a frozen model's own output head.
