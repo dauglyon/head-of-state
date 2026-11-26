@@ -31,7 +31,7 @@ Lengths marked "measure" are taken from the named non-evaluated split before the
 |---|---|---|
 | S1, S2, S4 | 190.5 tokens (median merged-section length, WikiSection en_disease validation split as the S1 tuning articles, 260 documents, 1,238 segments, Qwen3.5-4B tokenizer; `eval/wikisection.py measure`, 2026-11-25) (one value for all S1 length conditions and S2) | "the last few sentences" |
 | S3 | 30 tokens (median sentence length, PubMed 20k RCT dev, 30,212 sentences, Qwen3.5-4B tokenizer; `eval/s3_pubmed.py measure`, 2026-11-25) | "the last sentence" |
-| S5 | measure: median turn length, ACI-Bench train | "the last turn" |
+| S5 | 12 tokens (median turn length, ACI-Bench train, 3,735 turns, H2O-Lightning-4B tokenizer; 2026-11-25) | "the last turn" |
 | S6 | measure: median turn length, one held-out year | "the last turn" |
 | S7 | measure: median message length, oasst1 validation | "the last message" |
 | S8 | measure: median cell length, held-out notebooks | "the last few lines" |

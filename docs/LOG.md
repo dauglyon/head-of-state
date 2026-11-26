@@ -377,3 +377,20 @@ given in this repository's layout and reproduce from the same code.
   - The base model at the same setting still gives 0.894 with no spurious switches.
 - Conclusion: on the 245-token demo the two models are on a par. The 30-abstract test comparison is
   the evidence for the default.
+
+**2026-11-25 · S5: speaker roles in doctor–patient conversations (ACI-Bench)**
+- Data: ACI-Bench (CC BY 4.0) `clinicalnlp_taskB_test1`, the first 10 two-speaker encounters (11,921
+  tokens). Speaker tags removed, one turn per line, the tags as gold. Declared length 12 tokens (median
+  turn, train split; recorded in `docs/TEST_SUITE.md` before the run). Unit "the last turn".
+  H2O-Lightning-4B.
+- Commands: `H2O_LIGHTNING_PATH=<checkout> uv run python -I experiments/aci_bench.py run`, then `... report`
+  → `results/aci_bench.md`
+- Result, frozen settings (every 8th token, 12.8 ms per token):
+  - token accuracy 0.855 (persist 1) and 0.862 (filter)
+  - switches matched 181–199 of 378, caught within about 3 tokens
+  - 2.6–4.8 spurious per 1k, ECE 0.03–0.06
+- Result, every token on 3 encounters (not frozen, 95.7 ms per token): 0.835–0.846 accuracy, 76–77 of
+  194 switches matched. The frozen setting on the same 3 encounters scored 0.875–0.882.
+- Conclusion: who is speaking is read quickly and accurately, so detection lag depends on how clearly
+  the text signals a change. About half the turn changes are missed because many turns are shorter
+  than the reading interval or the commit rule allows; reading every token does not recover them.
