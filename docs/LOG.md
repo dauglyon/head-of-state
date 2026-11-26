@@ -505,3 +505,33 @@ given in this repository's layout and reproduce from the same code.
 - Conclusion: once corrected labels are judged, most of the apparent lag disappears. What remains is
   the time to notice, set by how soon the text reveals the change. Short conversational turns are still
   mostly missed, and related states (symptom, cause) are still often confused.
+
+**2026-11-26 · How to ask a Jev-class model: documented question formats, small comparison**
+- Research: a literature and documentation survey of how Jev-class decision models should be asked.
+  Sources: TypeSafe's Jev docs, the H2O-Lightning card, Sun et al., AnyJev, LLM-as-Jev, Large Decision
+  Models, Releasing the Inner Jev. Documented recommendations:
+  - state the exact condition and mark the target in the record;
+  - use neutral option names, with the meaning carried by the descriptions;
+  - average over option orders;
+  - prefer a JSON record with named parts;
+  - send only what the decision needs;
+  - give examples for options the model confuses;
+  - one joint choice beats one yes/no question per option, by 2–5 points in the papers.
+- Command: `H2O_LIGHTNING_PATH=<checkout> uv run python -I experiments/ask_variants.py run_research`,
+  then `... report` → `results/ask_variants.md`
+- Setup: tuning data only, small (3 PubMed dev abstracts, 1 WikiSection validation stream, 1 ACI-Bench
+  train encounter), a reading every 4th token, H2O-Lightning-4B. Judged on settled labels.
+- Result (settled token accuracy; current question → R1 → R2):
+  - PubMed: 0.878 → 0.893 → 0.927, time to notice 18.3 → 10.7 → 7.1 tokens
+  - ACI-Bench: 0.847 → 0.923 → 0.924, turn changes placed within 16 tokens 16 → 37 of 54
+  - WikiSection: 0.675 → 0.547 → 0.523
+  - R1 is the current sentence (or line) as its own part of the record with a direct question; R2 adds
+    neutral option names.
+- Other arms against R1:
+  - two option orders, a JSON record, a domain-worded question, recent text only and two real examples
+    per state did not help;
+  - one yes/no question per state was much worse on every set (PubMed 0.452).
+- Conclusion: marking the current sentence or line as the target, with neutral names, helps where the
+  states change at that scale (sections of an abstract, speaker turns). It hurts for multi-sentence
+  topic sections (WikiSection), where one sentence alone is often ambiguous. These are small samples;
+  a larger check and a passage-sized target for WikiSection are next.
