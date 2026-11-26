@@ -896,3 +896,18 @@ given in this repository's layout and reproduce from the same code.
   section of a document, the phase of a call), so the words differ because of it; the next-token emission
   measures exactly that. Dialogue acts, sentence roles and story stages are labels put on finished text, and the
   text barely depends on them. Test sets are being reselected on that criterion.
+
+**2026-11-26 · Catalogue form on the news tuning streams; the command-line tool moved to next-token emissions**
+- Commands: `H2O_LIGHTNING_PATH=<checkout> uv run python -I experiments/stated_next_token.py run --model h2o --form
+  catalogue --streams first|rest ag_news` → `results/stated_next_token.md`; `uv run head-of-state --demo`;
+  `uv run python tests/test_next_token.py`
+- News topics, three seed-0 streams, settled labels: catalogue form 0.866 (0.881 / 0.798 / 0.921), switches
+  placed within 16 tokens 17 of 21, false switches 2.6 per 1,000; instruction form 0.929, 18 of 21, 1.6; question
+  readout 0.865. 111 ms per token against 135. On news the catalogue form is worse; the primary comparison of the
+  confirmation is the owner's decision, and the confirmation waits for it.
+- The command-line tool (`head_of_state.cli`) now runs the method as designed: next-token emissions per state
+  (catalogue form), forward filter for the live output, Viterbi for the settled segments. Demo: settled token
+  accuracy 0.682; greeting, problem, troubleshooting and closing found, billing read as troubleshooting.
+  `tests/test_next_token.py`: branch emissions equal a full recompute (difference below 1e-6) for both forms,
+  and the cache holds only the instruction and the stream after every token. README and `docs/method.md` now
+  describe this method.

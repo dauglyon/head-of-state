@@ -9,6 +9,9 @@ Tuning streams (seed 0), first stream per list, every token. Emission: P(actual 
 | h2o, instruction | ag_news-0-2 | 1998 | 0.630 | world vs science and technology: 0.436 | 0.79 | 0.32 | 3.26 | -0.22 to -0.10 | -4.99 | 134 |
 | h2o, instruction | wikisection-0-1 | 2050 | 0.530 | symptom vs mechanism: -0.103 | 0.76 | 0.30 | 1.96 | -0.58 to +0.23 | -4.76 | 276 |
 | h2o, instruction | wikisection-0-2 | 2059 | 0.576 | society and research vs history: -0.445 | 0.90 | 0.32 | 1.43 | -0.58 to +0.34 | -5.33 | 276 |
+| h2o, catalogue | ag_news-0-0 | 2101 | 0.613 | science and technology vs business: 0.073 | 0.97 | 0.15 | 1.46 | -0.50 to +0.12 | -5.39 | 111 |
+| h2o, catalogue | ag_news-0-1 | 2085 | 0.660 | science and technology vs business: 0.087 | 0.95 | 0.24 | 1.11 | -0.38 to +0.08 | -5.11 | 111 |
+| h2o, catalogue | ag_news-0-2 | 1998 | 0.552 | world vs science and technology: 0.282 | 0.92 | 0.19 | 1.71 | -0.28 to +0.07 | -4.99 | 111 |
 | h2o, bracket | ag_news-0-0 | 2101 | 0.449 | business vs world: 0.147 | 0.87 | 0.23 | 1.30 | -0.24 to -0.03 | -3.66 | 103 |
 | h2o, bracket | wikisection-0-0 | 2302 | 0.176 | history vs society and research: -0.198 | 1.00 | 0.21 | 0.32 | -0.28 to +0.16 | -3.26 | 175 |
 | h2o, bracket | imdb-0-0 | 2102 | 0.045 | negative vs positive: 0.040 | 0.54 | 0.21 | 0.32 | -0.03 to -0.02 | -2.75 | 78 |
@@ -27,6 +30,9 @@ Decoded, weight 1, declared length. Cells: token accuracy · switches placed wit
 | h2o, instruction | ag_news-0-2 | 0.955 · 9/9 · 1.0 · 18 | 0.873 · 7/9 · 3.0 · 24 |
 | h2o, instruction | wikisection-0-1 | 0.305 · 1/2 · 2.9 · 307 | 0.816 · 0/2 · 1.0 · nan |
 | h2o, instruction | wikisection-0-2 | 0.596 · 3/3 · 2.9 · 74 | 0.647 · 2/3 · 7.8 · 156 |
+| h2o, catalogue | ag_news-0-0 | 0.881 · 5/7 · 1.4 · 30 | 0.887 · 4/7 · 2.9 · 32 |
+| h2o, catalogue | ag_news-0-1 | 0.798 · 5/5 · 3.8 · 32 | 0.835 · 4/5 · 3.4 · 48 |
+| h2o, catalogue | ag_news-0-2 | 0.921 · 7/9 · 2.5 · 15 | 0.873 · 7/9 · 3.0 · 24 |
 | h2o, bracket | ag_news-0-0 | 0.922 · 4/7 · 2.4 · 40 | 0.887 · 4/7 · 2.9 · 32 |
 | h2o, bracket | wikisection-0-0 | 0.169 · 1/3 · 7.8 · 150 | 0.596 · 2/3 · 5.6 · 25 |
 | h2o, bracket | imdb-0-0 | 0.713 · 4/8 · 0.5 · 50 | 0.827 · 3/8 · 2.4 · 58 |

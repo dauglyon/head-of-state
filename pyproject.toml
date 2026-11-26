@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [project.scripts]
-head-of-state = "head_of_state.reader:main"
+head-of-state = "head_of_state.cli:main"
 
 [build-system]
 requires = ["hatchling"]

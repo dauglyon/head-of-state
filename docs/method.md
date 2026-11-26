@@ -1,113 +1,88 @@
 # Method and decoder notes
 
 Terms: a *hidden state* (*regime*) is one of the states described at run time (name plus one-line
-description); a *switch* is a change from one hidden state to another; the *head* is the model's
-existing output layer. The method is HMM-like: per-token state scores are combined with a sticky
-transition model, but the scores are read from a frozen language model rather than learned emission
-tables.
+description), the condition the text is written under; a *switch* is a change from one hidden state to
+another; the *head* is the model's existing output layer. The method is HMM-like: the head supplies the
+emissions, a sticky transition model supplies the dynamics, and nothing is trained.
 
-## Reading the hidden state from the head
+## Emissions: the next token, predicted once per state
 
-Default model: H2O-Lightning-4B (h2oai/h2o-lightning-4b), a Qwen3.5-4B fine-tuned to answer choice questions
-about a record. `head_of_state.h2o.H2OReader` puts the stream in that model's own prompt format (`record:`,
-`question:`, lettered `options:`, `Answer:` prefill, choice temperature 0.75); other models use the original
-instruction format of `reader.py` (`--prompt` chooses). On 30 PubMed test abstracts H2O-Lightning was better
-on every measure at the same cost (`docs/LOG.md`).
+`src/head_of_state/next_token.py`, `StatedNextTokenReader` (form `catalogue`, used by the command-line tool).
 
-`src/head_of_state/reader.py`, `StreamStateReader`.
+1. The stream sits in the user turn of the model's chat format, after a list of every state's name and
+   description ("The text below is made of parts of these kinds: - name: description ..."). Each stream
+   token is fed once and stays in the key/value cache.
+2. At every token t, one temporary branch per state closes the user turn with "This part of the text is
+   <name>. What word comes next?" and opens the answer with "Next word:". The head's distribution at the end
+   of branch k is P(next token | x_1..x_t, state k).
+3. The emission of token t+1 for state k is that distribution's probability for the token that actually
+   comes next. A chat answer writes a word with or without its leading space, so the probability of the
+   token and of its other spacing (when that is one token) are added; the same mapping is used for every
+   state. Token 1 has nothing before it and gets a flat emission.
+4. The K branches run as one batched pass over a cache widened to one row per branch, and are removed
+   afterwards. Attention layers drop the branch's keys and values; Gated DeltaNet layers (Qwen3.5) keep one
+   running state that a branch overwrites in place, so those states are copied before and restored after.
+   `tests/test_next_token.py` checks that a branch's emission equals a full recompute and that the cache
+   holds only the instruction and the stream afterwards.
 
-1. The opening instruction and the stream so far are held in the model's key/value cache; each
-   stream token is processed once.
-2. At a reading point, a question listing the states as lettered options is appended as a temporary
-   branch, ending with an `Answer:` prefill. The head's probabilities for the option letters, softmaxed
-   over the K letters, are the reading.
-3. Option orderings: the question can be asked with the options rotated, and the log-probabilities
-   averaged per state, to cancel position bias (`rotations`). On the samples measured so far a
-   second ordering did not improve accuracy.
-4. The branch is removed from the cache. Attention layers drop the branch's keys and values. Gated
-   DeltaNet layers (Qwen3.5) keep one running state that the branch overwrites in place; transformers
-   cannot crop it, so those states are copied before the branch and restored after it.
-5. All orderings run as one batched pass over a cache widened to one row per ordering; each layer's
-   attributes are restored afterwards.
-6. With `stride` N, the N stream tokens since the last reading are fed in one pass just before the
-   next reading. A one-token pass and an N-token pass cost about the same (both are dominated by
-   reading the weights), so the cost per token falls almost N-fold. Every token is still labelled:
-   a reading labels the tokens since the previous reading (`Reading.start` to `Reading.pos`), and
-   `finish()` takes a last reading for tokens left at the end of the stream. A token's label therefore
-   arrives up to N − 1 tokens after the token. `persist` counts readings, so it shrinks with the
-   stride: every 8th token with `persist` 1 matched every token with `persist` 3 in tests.
+The emission depends on the current state and the text before the token only. Nothing that names a
+particular state stays in the cache (the list of states names all of them), so this is the regime density of
+a Markov-switching model (Hamilton, "Regime switching models", eq. 7, econweb.ucsd.edu/~jhamilton/palgrav1.pdf):
+the forward filter, smoother and Viterbi apply as printed, and the product of emissions over tokens is the
+likelihood of the text under a state path. A factor shared by all K emissions at a token cancels in the
+filter's normalisation: the branches all lose 4–6 nats against the plain next-token prediction, which costs
+nothing.
 
-Cost on an RTX 3060 (12 GB) with Qwen3.5-4B: one stream token 31 ms; one question pass about 66 ms at
-113 tokens, 69 ms at 128 tokens, 96 ms at 129–130 tokens (a matrix-tiling step: keep questions at or
-under 128 tokens). A reading at every token with 2 orderings costs 150 ms per token; a reading every
-8th token with 1 ordering costs 14 ms (5 states) to 20 ms (10 states) per token.
+Why the list of states goes at the start: a description tells the model what kind of text this is as well as
+which state. When each branch carried its own description ("This part of the text is <description>. What word
+comes next?", form `instruction`), one description raised the probability of all text, and that state took
+most of the labels (opinion on Switchboard, symptom on whole WikiSection articles). Listing all descriptions
+once gives every branch the same information, so the branches differ only in the state they name; branches are
+also shorter (26–28 tokens). A third form, a bare " [name: description]" note on plain text (form `bracket`),
+gave less evidence per token than either.
 
-## Decoders
+## Decoder
 
-`src/head_of_state/reader.py` (online) and `src/head_of_state/decoders.py` (offline replay of saved readings).
+`src/head_of_state/settle.py`, `src/head_of_state/metrics.py`.
 
-- **Raw argmax**: the likeliest state at each reading.
-- **Persist rule**: a new state is committed after it has been likeliest `persist` readings in a row.
-- **Sticky forward filter**: b_t(k) ∝ p_t(k)^η · Σ_j b_{t−1}(j)·A_jk, with A_kk = 1 − 1/L and the
-  remaining mass spread evenly; L is the declared typical segment length.
-- **Fixed-lag Viterbi** (`FixedLagViterbi`): max-product decoding with the same A and emissions
-  η·log p_t(k); at token t the best path is traced back and the label for token t − L is emitted
-  (L = full gives offline Viterbi). It returns a path, not probabilities; the forward filter's
-  per-token probabilities remain the probability output.
-- Fixed-lag forward-backward smoothing and a surprisal-modulated switch probability were also built in
-  `decoders.py`; neither improved on the decoders above in the tests so far.
+- **Transitions**: stay probability 1 − 1/L per token, the rest spread evenly over the other states, where L is
+  the declared typical segment length (geometric segment lengths; `reader.sticky_transition`).
+- **Live output**: the forward filter's probability for each state at each token (`metrics.forward_posteriors`)
+  and the likeliest state of the max-product forward pass (`settle.online_labels`), with no lookahead.
+- **Settled labels**: the Viterbi path over all tokens (`settle.settled_labels`). A switch is placed where the
+  new state's own tokens begin to favour it.
+- **Weight**: emissions enter at weight 1, as the likelihood factorisation implies. Measured on the tuning
+  streams (a second session's statistics, `docs/LOG.md`), it is not calibrated: one token's pairwise
+  log-ratio is 1.8–2.8 times too weak, and sums over 16 or more tokens are 2–10 times too strong, because the
+  model's errors are correlated from token to token (lag-1 autocorrelation of the per-token evidence
+  0.2–0.36). No other weight has been chosen; any would need its own justification.
 
-## Settled labels and time to notice
+## Judging
 
-A stream read left to right can only notice a switch once enough of the new text has arrived. The
-output is therefore judged on its settled labels (`head_of_state.settle.settled_labels`): Viterbi over
-all readings, with each reading treated as evidence for the state 0.2× the declared segment length
-earlier, because a reading describes the last few sentences and runs behind the text. Time to notice,
-from the online decision with no lookahead, is reported beside it and is not counted as error. On the
-demo the settled switches land within 4 tokens of the true ones.
+Settled labels are scored against the true state of every token: token accuracy, switches placed within 16
+tokens, false switches per 1,000 tokens, against always the most common state. Time to notice, the tokens from
+a true switch to the first live output showing the new state, is reported separately and not counted as error:
+a stream read left to right cannot know sooner. Tuning documents (the ones settings were chosen on) and
+confirmation documents (read once, with the comparison declared beforehand) are kept apart (`docs/TEST_SUITE.md`).
 
-## How switches are scored
+## What the emissions can and cannot carry
 
-A true switch is found only by a decoder switch event into the new state; staying in a state
-the stream returns to earns no credit, and every unmatched decoder switch is spurious. Two timing
-measures are kept apart:
-- **placement error**: distance from the true switch to where the final labels put the switch;
-- **decision latency**: tokens after the true switch at which the decoder first emits the new state
-  (placement plus the decoder's lag).
-For the persist rule and the forward filter the two are equal; fixed-lag decoders trade latency for
-placement.
+Per-token evidence for the true state over the others, instruction form, tuning documents: 0.62–0.74 nats for
+news topics and section types, 0.03–0.11 for review sentiment, dialogue acts, news sentence roles and story
+stages. The second group are labels put on finished text; the next word barely depends on them, so they are
+not hidden states in this sense and are not used as tests. Related section types whose words overlap
+(symptom, mechanism, prognosis) are confused a whole section at a time.
 
-## Known limits
+## Cost
 
-- **Detection lag.** On PubMed abstracts the raw readings flip about 16 tokens after the true switch,
-  and the persist rule commits about 23 tokens after it. Showing the question only the last 30–120
-  tokens does not shorten the lag, so it does not come from earlier history: a new section stays
-  ambiguous to the question until enough of it has arrived. Decoders cannot place a switch before
-  the readings turn; activation directions distilled from the asked readings turn sooner (13–20 tokens)
-  but are less accurate.
-- **Many similar states.** With 10 disease-article section types, token accuracy is 0.56–0.58 and
-  every decoder setting tried leaves more than 2 spurious switches per 1,000 tokens.
-- **Sample sizes.** All results so far come from 2 to 12 streams and 15 to 36 switches per set;
-  differences of a few points are within noise.
+On an RTX 3060 (12 GB) with H2O-Lightning-4B, every token read: about 111 ms per token with 4 states and
+210 ms with 10 in the catalogue form (one stream token pass plus one batched pass of K short branches).
 
-## Alternative readouts tested
+## Readouts tried before
 
-Details and numbers are in `docs/LOG.md`; code in `src/head_of_state/readouts.py` and
-`src/head_of_state/window_likelihood.py`.
-
-- **Question before the stream** (options cached once, a short answer prompt per reading): less
-  accurate (0.51 vs 0.84 on PubMed) and not much cheaper.
-- **Next-token likelihood** (one stream copy per state, opened by that state's description; the score
-  is the log-probability of each actual token): the description's effect on the next token fades
-  within about 32 tokens; with the description at the start only, accuracy is near chance.
-- **Hopped-window likelihood** (each copy rebuilt every W/2 tokens from description + last W tokens):
-  raises the likelihood readout (to 0.59 on PubMed at W = 2) but stays below the question readout.
-- **Embedding similarity** (bge-m3, window vs state description): 1–6 ms per token, accuracy 0.55
-  (PubMed) and 0.26 (WikiSection).
-- **Content-free calibration** of the question readout: lowered accuracy by 4 to 17 points.
-- **Windowed asking** (the question sees only the last W tokens): no shorter lag, lower accuracy.
-- **Activation directions** (residual stream at layer 24 of 32, difference of class means, read from
-  the stream's own pass at 0.5 ms per token): from model-written passages, 0.74 token accuracy with a
-  long delay; distilled from asked readings on other streams, 0.73–0.76 on 30 PubMed abstracts and
-  0.31 on WikiSection disease sections (asking: 0.60). Fused with asking every 8th token: 0.79 on
-  PubMed. The distilled directions are fitted per set of states, without gold labels.
+All with numbers and commands in `docs/LOG.md` and code in `src/head_of_state/` and `experiments/`:
+a multiple-choice question about the most recent text whose option-letter probabilities give P(state | text
+so far) (`reader.StreamStateReader`, `h2o.H2OReader`); one stream copy per state opened by that state's
+description, scored by next-token likelihood, whose effect faded within about 32 tokens (`readouts.py`,
+`window_likelihood.py`); embedding similarity; activation directions. Decoders tried on the question readings
+(persist rule, fixed-lag Viterbi, estimated weights and transitions) are there too.

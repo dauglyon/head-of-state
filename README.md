@@ -44,11 +44,8 @@ on the current state and the text.
 The default model is H2O-Lightning-4B, an open-weights Qwen3.5-4B fine-tuned to answer choice questions
 about a record. Qwen3.5-4B itself gave noisier emissions in the same setting.
 
-**Status: early prototype, with no settled use case yet.** The method above is implemented in
-`head_of_state.next_token` and evaluated in `experiments/`. The command-line tool still runs the earlier
-Jev-style readout, a multiple-choice question whose option probabilities give P(state | text so far);
-moving it to the method above waits for the confirmation below. Descriptions of problems that resemble this
-one are welcome in the issue tracker.
+**Status: early prototype, with no settled use case yet.** Descriptions of problems that resemble this one
+are welcome in the issue tracker.
 
 ## Results so far
 
@@ -60,17 +57,17 @@ the new state; a stream read left to right cannot know sooner, so it is reported
 
 All of the following is tuning data: the documents the wording was chosen on. A confirmation on 12 news
 streams nothing has read, with the comparison declared beforehand, is next. The news and joined-section
-streams were read with each state's description in its own branch, before the descriptions moved to the
+streams were read with each state's description in its own question, before the descriptions moved to the
 start of the text; the whole articles were read as described above.
 
-| States (documents) | Token accuracy | Earlier readout, same documents | Always the most common state | Switches placed within 16 tokens |
-|---|---|---|---|---|
-| News topics, 4 states (AG News articles, 3 streams) | 0.93 | 0.87 | 0.34 | 18 of 21 (earlier readout 15) |
-| Section types, 10 states (3 whole WikiSection disease articles) | 0.67 | 0.68 | 0.23 | 9 of 13 |
-| Section types, 10 states (WikiSection disease sections joined, 3 streams) | 0.57 | 0.68 | 0.27 | 6 of 8 |
+| States (documents) | Token accuracy | Always the most common state | Switches placed within 16 tokens |
+|---|---|---|---|
+| News topics, 4 states (AG News articles, 3 streams) | 0.93 | 0.34 | 18 of 21 |
+| Section types, 10 states (3 whole WikiSection disease articles) | 0.67 | 0.23 | 9 of 13 |
+| Section types, 10 states (WikiSection disease sections joined, 3 streams) | 0.57 | 0.27 | 6 of 8 |
 
-On news topics, settled switches land a median 3 tokens after the true switch (earlier readout: 6), and the
-live output shows a new topic 18–43 tokens after it, by stream.
+On news topics, settled switches land a median 3 tokens after the true switch, and the live output shows a
+new topic 18–43 tokens after it, by stream.
 
 Known limits:
 - **Related states are confused.** Section types that change the words in overlapping ways are read as one
@@ -85,25 +82,21 @@ Known limits:
 - **Cost.** One branch per state at every token: about 135 ms per token with 4 states and 210 ms with 10, on
   an RTX 3060.
 
-The earlier readout's held-out results, its decoders and every run's settings are in `docs/LOG.md`, with an
-audit of the scoring and its corrections.
+Every run's settings and results, including the readouts tried before this one, are in `docs/LOG.md`, with
+an audit of the scoring and its corrections.
 
 ## Run the demo
 
-The command-line tool uses the earlier Jev-style readout.
-
 ```
 uv sync
-uv run head-of-state --demo                                       # downloads H2O-Lightning-4B (9.3 GB) on first use
-uv run head-of-state --demo --stride 8 --rotations 1 --persist 1   # read every 8th token: about 7x cheaper
-uv run python tests/test_reader.py        # mechanics tests on tiny random models
+uv run head-of-state --demo                  # downloads H2O-Lightning-4B (9.3 GB) on first use
+uv run python tests/test_next_token.py       # mechanics tests on a tiny random model
 ```
 
-A run prints the live readings, then the settled segments. Own states and text: `--states states.json`
-(`{"name": "description", ...}`), `--text file.txt` and `--segment-length <tokens>`. Another
-model or a local checkout: `--model <id or path>`, e.g. `--model Qwen/Qwen3.5-4B`.
-
-The method above, on the evaluation streams: `experiments/stated_next_token.py` and
+A run prints each token's live state and its probability, then the settled segments. Own states and text:
+`--states states.json` (`{"name": "description", ...}`), `--text file.txt` and `--segment-length <tokens>`;
+`--save out.json` writes the emissions and labels. Another model or a local checkout: `--model <id or path>`
+(it needs a chat template). The evaluation runs: `experiments/stated_next_token.py` and
 `experiments/stated_sets.py` (commands in their headers).
 
 Method and decoder notes: `docs/method.md`. Experiment log: `docs/LOG.md`; planned experiments:
