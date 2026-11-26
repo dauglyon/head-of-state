@@ -757,3 +757,34 @@ given in this repository's layout and reproduce from the same code.
 - Conclusion: with φ near 0.9, the state enters each observation only through the small intercept, so the
   fitted states explain the token-to-token noise of the readings rather than the text's regimes, and they
   switch every few tokens. The switching-intercept form makes the states describe changes, not levels.
+
+**2026-11-26 · State-conditioned next-token emissions: the intended method, first run (tuning streams)**
+- Commands: `H2O_LIGHTNING_PATH=<checkout> uv run python -I experiments/stated_next_token.py run --model h2o
+  --form instruction` (and `--model qwen`; `--form bracket` for comparison), then `... report` →
+  `results/stated_next_token.md`
+- Method (`head_of_state.next_token.StatedNextTokenReader`): the owner's design, which the earlier runs did not
+  build. The stream sits in the user turn of the model's chat format. At every position, one temporary branch
+  per state asks "This part of the text is about <description>. What word comes next?" with the answer opened
+  by "Next word:"; the head's probability for the token that actually comes next (with or without its leading
+  space) is that token's emission for the state, P(next token | text so far, state). Branches run as one batch
+  and are removed, so nothing naming a state stays in the cache. The HMM-like decoder uses these emissions at
+  weight 1 with the declared length. The Jev-style readout gives P(state | text so far) instead; the
+  2026-11-25 likelihood runs put one state sentence above the text rather than asking at each position.
+- Setup: the first seed-0 stream of each list (2,100–2,300 tokens, 3–8 switches), every token.
+- Result, H2O-Lightning, token accuracy · switches placed within 16 tokens · false switches per 1k (Jev-style
+  readout on the same stream in brackets):
+  - News topics: 0.916 · 4/7 · 1.4 (0.887 · 4/7 · 2.9); evidence for the true state over the others 0.75 nats
+    per token
+  - Disease sections: 0.785 · 2/3 · 2.2 (0.596 · 2/3 · 5.6); 0.85 nats per token
+  - Reviews: 0.591 · 2/8 · 1.9 (0.827 · 3/8 · 2.4); 0.11 nats per token, and each state's question shifts the
+    probability of all text by its own amount, as large as the signal
+- Qwen3.5-4B with the same wording: 0.858 / 0.520 / 0.523, per-token evidence about twice as noisy. The
+  bracket wording " [name: description]" on plain text (H2O-Lightning): 0.922 / 0.169 / 0.713, with the wrong
+  states winning on disease sections.
+- Weight 1 is not exact (statistics by a second session): a single token's evidence is 2–2.5 times too weak on
+  news and disease sections, and sums over 16 or more tokens are 2–4 times too strong, because the model's
+  errors carry over between tokens (lag-1 autocorrelation 0.25–0.36).
+- Cost: 104–279 ms per token (H2O-Lightning; ten states with long descriptions cost the most).
+- Conclusion: on one stream per list, the intended method beats the question readout on news topics and disease
+  sections and fails on review sentiment, which barely changes the next word. Too few switches to establish a
+  difference; the remaining tuning streams are next.
