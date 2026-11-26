@@ -1,5 +1,3 @@
-<p align="center"><img src="docs/assets/logo/head-of-state-logo.svg" width="120" alt="Head of State logo"></p>
-
 # Head of State
 
 Zero-shot regime tracking from an open-weights LLM's output head.
@@ -64,3 +62,5 @@ Method and decoder notes: `docs/method.md`. Experiment log: `docs/LOG.md`; plann
 original brief: `docs/HANDOFF.md`. Datasets for the experiments: `experiments/data/download.sh`.
 
 Licensed under the Apache License 2.0 (`LICENSE`).
+
+<p align="center"><img src="docs/assets/logo/head-of-state-logo.svg" width="96" alt="Head of State logo"></p>
