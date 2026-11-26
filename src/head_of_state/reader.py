@@ -541,8 +541,7 @@ def main():
                     help="option orderings averaged per reading (default 2); 1 matched 2 in tests")
     ap.add_argument("--target", choices=["none", "sentence", "line", "passage"], default="none",
                     help="H2O format only: put the current sentence, line or last 3 sentences in the record as\n"
-                         "its own part and ask about it directly, with neutral option names. 'line' doubled\n"
-                         "the share of turn changes placed in conversations (docs/LOG.md)")
+                         "its own part and ask about it directly, with neutral option names (docs/LOG.md)")
     ap.add_argument("--refine", action="store_true",
                     help="with --stride N: where two readings disagree, bisect between them (about log2 N extra\n"
                          "readings per change) so a switch is placed at a single token")
@@ -606,11 +605,11 @@ def main():
         print(f"{span:>9} {word!r:>16}  {names[r.state]:<16} p={max(r.probs):.2f}{mark}")
     if gold:
         print("live:", score(reader.readings, gold))
-    # Settled labels: the best path over all readings, each reading moved back 0.2x the segment length
+    # Settled labels: the best path over all readings (docs/TEST_SUITE.md, judging revised 2026-11-26)
     from .settle import settled_labels
     rp = np.asarray([r.probs for r in reader.readings])
     rpos = [r.pos for r in reader.readings]
-    lab = settled_labels(rp, rpos, a.segment_length, int(round(0.2 * a.segment_length)))
+    lab = settled_labels(rp, rpos, a.segment_length)
     print("settled segments:")
     start = 1
     for i in range(len(lab)):

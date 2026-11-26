@@ -3,6 +3,7 @@
 #   PubMed 20k RCT  (github.com/Franck-Dernoncourt/pubmed-rct): train/dev/test splits, one sentence per line
 #   WikiSection     (github.com/sebastianarnold/WikiSection, CC BY-SA 3.0): en_disease and en_city JSON
 #   ACI-Bench       (github.com/wyim/aci-bench, CC BY 4.0): doctor-patient dialogues, challenge-data CSVs
+#   AG News, IMDB   (Hugging Face fancyzhx/ag_news, stanfordnlp/imdb): test splits, converted to JSON lines
 set -euo pipefail
 mkdir -p data/pubmed-rct data/wikisection
 for s in train dev test; do
@@ -19,5 +20,18 @@ mkdir -p data/aci-bench
 for f in train valid clinicalnlp_taskB_test1 train_metadata clinicalnlp_taskB_test1_metadata; do
   curl -sfL -o "data/aci-bench/$f.csv" \
     "https://raw.githubusercontent.com/wyim/aci-bench/main/data/challenge_data/$f.csv"
+done
+mkdir -p data/ag-news data/imdb
+curl -sfL -o data/ag-news/test.parquet \
+  "https://huggingface.co/datasets/fancyzhx/ag_news/resolve/main/data/test-00000-of-00001.parquet"
+curl -sfL -o data/imdb/test.parquet \
+  "https://huggingface.co/datasets/stanfordnlp/imdb/resolve/main/plain_text/test-00000-of-00001.parquet"
+for d in ag-news imdb; do
+  uv run --no-project --with pyarrow python -I -c '
+import json, sys, pyarrow.parquet as pq
+with open(sys.argv[2], "w") as f:
+    for row in pq.read_table(sys.argv[1]).to_pylist():
+        f.write(json.dumps(row) + "\n")' "data/$d/test.parquet" "data/$d/test.jsonl"
+  rm "data/$d/test.parquet"
 done
 echo "datasets in ./data"

@@ -578,3 +578,56 @@ given in this repository's layout and reproduce from the same code.
   Speaker turns (median 12 tokens) are not the state changes this tool is for; this line of work stops
   here, and evaluation returns to HANDOFF task 5 (labelled documents joined into streams, several
   unrelated state lists).
+
+**2026-11-26 · Joined labelled documents, three unrelated state lists (HANDOFF task 5)**
+- Declared in `docs/TEST_SUITE.md` before the run. Commands: `uv run python -I experiments/joined_documents.py
+  measure`; `H2O_LIGHTNING_PATH=<checkout> uv run python -I experiments/joined_documents.py run`, then `... report`
+  → `results/joined_documents.md`
+- Setup: segments of one or more same-label documents (sizes 64–512 tokens), joined with single spaces, so
+  nothing in the formatting marks a switch; 3 streams of about 2,000 tokens per list, seed 0; a reading at
+  every token, H2O-Lightning-4B. Declared lengths from seed-1 streams: AG News 270, WikiSection 441, IMDB 274.
+- Result, settled labels with the pre-registered reading shift (0.2 × declared length) / without it:
+  - AG News, 4 topics: token accuracy 0.779 / 0.865 (always the most common state 0.338); switches placed
+    within 16 tokens 6 / 15 of 21; time to notice 33 tokens.
+  - WikiSection, 10 section types: 0.616 / 0.683 (0.271); 3 / 4 of 8; time to notice 90 tokens.
+  - IMDB, positive / negative: 0.890 / 0.889 (0.507); 3 / 7 of 19; time to notice 49 tokens.
+- The shift moves every reading 54–88 tokens earlier here, and placed AG News switches a median 48 tokens
+  early. Without it, Viterbi puts switches after the true point (AG News median +6 tokens, IMDB +28: a
+  review's opening plot summary carries no sentiment).
+- Time to notice did not grow with the length of the segment before the switch (HANDOFF question 1), on
+  4–12 switches per length bin.
+- Conclusion: on streams whose switches are not marked by formatting, the readings plus Viterbi beat the
+  most-common-state baseline by 38–53 points. The 0.2 × length shift is wrong for long segments: how far a
+  reading runs behind the text depends on how much new text the model needs, not on the segment length. The
+  unshifted rule was chosen after seeing these streams, so it is confirmed on new streams (seed 2) next.
+
+**2026-11-26 · Joined labelled documents, confirmation on new streams; judging revised**
+- Declared in `docs/TEST_SUITE.md` before the run. Commands: `H2O_LIGHTNING_PATH=<checkout> uv run python -I
+  experiments/joined_documents.py run --seed 2`, then `... report --seed 2` → `results/joined_documents_seed2.md`
+- Setup: as the seed-0 run; 3 new streams per list built with seed 2 from documents not used in the seed-0
+  streams.
+- Result, settled labels without the reading shift (with the 0.2 × length shift in brackets):
+  - AG News: token accuracy 0.874 (0.832), always the most common state 0.339; switches placed within 16
+    tokens 10 of 18 (3); time to notice 30 tokens.
+  - WikiSection: 0.655 (0.642), baseline 0.296; 5 of 11 (2); time to notice 92 tokens.
+  - IMDB: 0.809 (0.811), baseline 0.665; 5 of 15 (1); time to notice 55 tokens.
+- The held-out PubMed and null streams re-judged without the shift: PubMed 0.776 (0.788 with its 6-token
+  shift), 63 of 95 placed either way; null streams 0.468 either way.
+- Conclusion: confirmed. Settled labels are now the Viterbi path over the readings where they were taken
+  (TEST_SUITE judging revised; the CLI's settled output changed to match). Viterbi still places most switches
+  after the true point, because the readings name the new state only once its text shows it.
+
+**2026-11-26 · Does the earlier stream hold the readings back? (HANDOFF question 1, joined documents)**
+- Commands: `H2O_LIGHTNING_PATH=<checkout> uv run python -I experiments/joined_inertia.py run`, then
+  `... report` → `results/joined_inertia.md`
+- Setup: for each of the 48 switches in the seed-0 joined-document streams, the first 128 tokens of the new
+  segment read again alone (nothing before them), against the in-stream readings at the same tokens.
+- Result, mean probability of the new state 8 / 16 / 64 tokens into the new segment, in stream → alone:
+  - AG News: 0.46 → 0.76, 0.56 → 0.82, 0.67 → 0.79
+  - IMDB: 0.34 → 0.65, 0.46 → 0.74, 0.71 → 0.89
+  - WikiSection: 0.35 → 0.33, 0.42 → 0.55, 0.61 → 0.70
+- Conclusion: for news topics and review sentiment, the text before the switch holds the readings back:
+  the new text alone is named within a few tokens, in the stream only after tens of tokens. For disease
+  article sections the new text itself is ambiguous at first, as the earlier windowed-question runs found
+  on WikiSection. Part of the hold-back is the question itself, which asks about "the last few sentences"
+  and so still covers the previous segment for the first sentence or two.
