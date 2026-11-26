@@ -1,4 +1,4 @@
-"""First scored (non-tuning) runs with the frozen settings of docs/TEST_SUITE.md.
+"""First scored (non-tuning) runs, made with the earlier frozen setting (a reading every 8th token).
 
     uv run python -I experiments/scored_runs.py run      # GPU
     uv run python -I experiments/scored_runs.py report   # CPU: results/scored_runs.md
@@ -27,7 +27,8 @@ import wikisection  # noqa: E402
 from common import MODEL, RUNS  # noqa: E402
 
 OUT = RUNS / "scored"
-FROZEN = dict(rotations=1, stride=8, persist=1, prior_power=0.0, max_ctx=8192, keep_ctx=2048)
+FROZEN = dict(rotations=1, stride=1, persist=3, prior_power=0.0, max_ctx=8192, keep_ctx=2048)
+STRIDE8 = dict(FROZEN, stride=8, persist=1)   # the earlier frozen setting, kept as an experiment
 NULL_STATES = ["symptom", "cause", "diagnosis", "treatment"]
 
 
@@ -65,7 +66,7 @@ def run():
     OUT.mkdir(parents=True, exist_ok=True)
     for name, streams, states, unit in (("S3test", s3_test(), pubmed_rct.STATES, pubmed_rct.UNIT),
                                         ("S2null", s2_null(tok), wikisection.STATES, wikisection.UNIT)):
-        reader = UnitReader(model, tok, states, unit=unit, **FROZEN)
+        reader = UnitReader(model, tok, states, unit=unit, **STRIDE8)
         n = sec = 0
         with (OUT / f"{name}.jsonl").open("w") as f:
             for s in streams:
@@ -90,7 +91,7 @@ def report():
                 if dname == "persist 1":
                     q, lab = p, np.asarray(decode_persist(p, 1))
                 else:
-                    q = forward_posteriors(p, 1.0, L / FROZEN["stride"])
+                    q = forward_posteriors(p, 1.0, L, None, STRIDE8["stride"])
                     lab = q.argmax(1)
                 counts.append(stream_counts(lab, q, r["gold"], pos))
                 tokens += r["n_tokens"]

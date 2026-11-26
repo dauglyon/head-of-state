@@ -10,19 +10,23 @@ from __future__ import annotations
 
 import numpy as np
 
-from .reader import Reading, score
+from .reader import Reading, score, sticky_transition
 
 
-def forward_posteriors(p: np.ndarray, eta: float, seg_len: float, prior=None) -> np.ndarray:
-    """Sticky forward filter, b_t ∝ (p_t / prior)^η ⊙ (b_{t-1} A); A_kk = 1 - 1/L.
+def forward_posteriors(p: np.ndarray, eta: float, seg_len: float, prior=None, gap=1) -> np.ndarray:
+    """Sticky forward filter, b_t ∝ (p_t / prior)^η ⊙ (b_{t-1} A_t). seg_len is the declared segment
+    length in tokens; gap is the number of tokens between readings (one number, or one per reading for
+    irregular readings) and A_t is the per-token chain raised to that gap (reader.sticky_transition).
     prior: None, a fixed vector (e.g. the mean of p over unlabelled positions), or "running" (the mean
     of p over the stream's earlier positions, uniform at the start)."""
     T, K = p.shape
-    stay = 1.0 - 1.0 / max(seg_len, 1.0 + 1e-9)
-    A = np.full((K, K), (1.0 - stay) / (K - 1))
-    np.fill_diagonal(A, stay)
+    gaps = np.broadcast_to(np.asarray(gap, dtype=int), (T,))
+    cache = {}
     b, run, out = np.full(K, 1.0 / K), np.full(K, 1.0 / K), np.empty((T, K))
     for t in range(T):
+        g = int(gaps[t])
+        if g not in cache:
+            cache[g] = sticky_transition(K, seg_len, g)
         pt = np.maximum(p[t], 1e-12)
         if prior is None:
             e = pt
@@ -31,7 +35,7 @@ def forward_posteriors(p: np.ndarray, eta: float, seg_len: float, prior=None) ->
             run = run + (p[t] - run) / (t + 1)
         else:
             e = pt / np.maximum(prior, 1e-12)
-        b = (b @ A) * np.power(e / e.max(), eta)
+        b = (b @ cache[g]) * np.power(e / e.max(), eta)
         b /= b.sum()
         out[t] = b
     return out
@@ -47,14 +51,23 @@ def boundary_matches(pred: list[int], true: list[int], k: int) -> int:
     return n
 
 
-def stream_counts(labels, probs: np.ndarray, gold_all: list[int], positions, ks=(8, 16), bins=10) -> dict:
+def stream_counts(labels, probs: np.ndarray, gold_all: list[int], positions, ks=(8, 16), bins=10, decided=None,
+                  start_token: int = 1) -> dict:
     """Per-stream sums for pooling. gold_all is the gold state of every token (1-based positions).
 
+    decided: the position at which each reading was available (defaults to its position).
+    start_token: score only from this 1-based token on (readings before it must already be dropped);
+    the first reading then labels the tokens from start_token to its position.
     Each reading labels the tokens since the previous reading, so accuracy, boundaries, Brier and ECE
     are computed per token after expanding the readings over the tokens they label (a predicted
     boundary is the first token of the span whose label differs). Switch matching, delay and spurious
     switches stay on the readings: delay is the time at which the decoder first shows the new state.
     """
+    off = start_token - 1
+    if off:
+        gold_all = gold_all[off:]
+        positions = [int(x) - off for x in positions]
+        decided = None if decided is None else [int(x) - off for x in decided]
     pos = [int(x) for x in positions]
     lab = [int(x) for x in labels]
     probs = np.asarray(probs)
@@ -65,7 +78,8 @@ def stream_counts(labels, probs: np.ndarray, gold_all: list[int], positions, ks=
     pb = [i for i in range(1, len(tok_lab)) if tok_lab[i] != tok_lab[i - 1]]
     tb = [i for i in range(1, len(g_tok)) if g_tok[i] != g_tok[i - 1]]
     g = [gold_all[x - 1] for x in pos]
-    rs = [Reading(x, [], s, s, i > 0 and s != lab[i - 1]) for i, (x, s) in enumerate(zip(pos, lab))]
+    dec = pos if decided is None else [int(x) for x in decided]
+    rs = [Reading(x, [], s, s, i > 0 and s != lab[i - 1], decided=d) for i, (x, s, d) in enumerate(zip(pos, lab, dec))]
     m = score(rs, gold_all)
     onehot = np.eye(probs.shape[1])[g_tok]
     conf, hit = tok_p.max(1), (tok_p.argmax(1) == g_tok)

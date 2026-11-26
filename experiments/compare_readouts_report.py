@@ -39,14 +39,14 @@ def decoders(kind, seg, with_neutral=False):
         out.append(("raw", decode_raw, 0))
         out += [(f"persist {n}", partial(decode_persist, persist=n), 0) for n in (2, 3, 5, 8)]
     for f in (0.25, 1.0, 4.0):
-        out += [(f"filter L×{f:g} η={e:g}", partial(decode_filter, eta=e, seg_len_readings=seg * f), 0)
+        out += [(f"filter L×{f:g} η={e:g}", partial(decode_filter, eta=e, seg_len=seg * f), 0)
                 for e in ETAS]
-    out += [(f"fixed-lag {lag} L×1 η={e:g}", partial(decode_fixedlag, eta=e, seg_len_readings=seg, lag=lag), lag)
+    out += [(f"fixed-lag {lag} L×1 η={e:g}", partial(decode_fixedlag, eta=e, seg_len=seg, lag=lag), lag)
             for lag in LAGS for e in ETAS]
     if with_neutral:
         for g in (0.5, 1.0, 2.0):
             for e in ETAS:
-                f = partial(decode_filter_hazard, eta=e, seg_len_readings=seg, gamma=g)
+                f = partial(decode_filter_hazard, eta=e, seg_len=seg, gamma=g)
                 f.uses_record = True
                 out.append((f"surprisal-hazard γ={g:g} η={e:g}", f, 0))
     return out

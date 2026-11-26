@@ -441,3 +441,39 @@ given in this repository's layout and reproduce from the same code.
   (speaker turns), at about 40% more cost. It cannot place a switch before the readings turn, so it
   does not help where they drift (PubMed sections). Viterbi suits sets whose segments span several
   readings.
+
+**2026-11-25 · Audit of the evaluation code, and fixes**
+- An independent review of the scoring and evaluation code, plus my own review, found these problems.
+  All are fixed in code, and every results table was regenerated from the saved runs.
+  1. **Bisection delay.** A switch placed by a bisection probe was scored from the probe's position,
+     but it was only decided at the next regular reading. Readings now carry `decided`, and delay runs
+     to it. Bisection does not shorten delay (ACI-Bench 5.9 → 6.0 tokens, PubMed 22.8 → 23.4). It
+     sharpens placement only (ACI-Bench boundary F1 ±2 0.24 → 0.39). The earlier "6.4 → 3.6" was wrong.
+  2. **Switch counts.** True switches were counted only between readings, so short segments vanished
+     at stride 8. They now come from the token-level gold, and an unread segment counts as missed.
+     ACI-Bench: 190 of 545 turn changes caught (about a third), not "about half".
+  3. **Transition model.** It was built from "declared length ÷ readings". With 12-token turns read
+     every 8 tokens, that favoured switching. It is now the per-token chain raised to the gap between
+     readings (`reader.sticky_transition`). The ACI-Bench filter has 1.5 spurious per 1k (was 4.8),
+     and Viterbi on ACI-Bench is no longer degenerate.
+  4. **Two accuracy definitions.** `decoders.evaluate` scored one token per reading. It now goes
+     through the same per-token scoring as everything else.
+  5. **Lookahead.** At a reading every 8th token, a token's label comes from a reading up to 7 tokens
+     later. That is why the every-8th-token accuracy looked higher than every-token accuracy. The
+     every-token readings rebuilt into the every-8th-token scheme give the same accuracy (PubMed test
+     0.759 against 0.763), and with 4–8 tokens of lookahead every-token labels reach 0.762–0.764.
+  6. **Mixed comparisons and selection.**
+     - Some comparisons changed the decoder together with the reading interval.
+     - The README picked a different decoder per row.
+     - H2O-Lightning and the revised settings were chosen after seeing the first test samples.
+     - Headline numbers now come from new held-out samples with one pre-registered decoder (next
+       entry).
+     - The earlier claim that H2O-Lightning was "better on every measure" was wrong: under the
+       forward filter it had more spurious switches (3.8 against 3.0 per 1k).
+  7. **Unequal starting points in S1.** In the S1 comparison, the likelihood path was filtered over
+     the whole stream but the question method only near the switch. Both are now decoded and scored
+     from the same token.
+  8. **Unread tails.** Tokens after the last regular reading were never read. `run_stream` now calls
+     `finish()`; runs made before this miss up to the last stride − 1 tokens per stream.
+- Tests: `tests/test_reader.py`, case 12 (unread segments counted as missed, decision-time delay, a
+  sticky transition across 8-token gaps).

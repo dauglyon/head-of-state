@@ -104,9 +104,9 @@ def report():
             elif kind == "persist":
                 q, lab = p, np.asarray(decode_persist(p, 3))
             else:
-                q = forward_posteriors(p, 1.0, L / 2)          # readings every 2nd token
+                q = forward_posteriors(p, 1.0, L, None, 2)     # readings every 2nd token
                 lab = q.argmax(1)
-            counts.append(stream_counts(lab, q, r["gold"], pos))
+            counts.append(stream_counts(lab, q, r["gold"], pos, start_token=start))
             tokens += r["n_tokens"] - start + 1
         return pool(counts, tokens), counts
 

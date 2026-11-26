@@ -96,7 +96,7 @@ def report():
             f = OUT / f"{name}_W{W or 'none'}.jsonl"
             recs = [json.loads(l) for l in f.open()]
             ms = 1000 * sum(r["seconds"] for r in recs) / sum(r["n_tokens"] for r in recs)
-            m = evaluate(recs, partial(decode_filter, eta=1.0, seg_len_readings=L), rotations=1)
+            m = evaluate(recs, partial(decode_filter, eta=1.0, seg_len=L), rotations=1)
             fd = fade(recs, W)
             print(f"W={str(W):>4s}: acc {m['accuracy_committed']:.3f} | matched {m['switches_matched']}/{m['true_switches']}"
                   f" | delay {m['mean_delay_tokens']:.1f} | spurious/1k {m['spurious_per_1k_tokens']:.2f} | {ms:.1f} ms/token")

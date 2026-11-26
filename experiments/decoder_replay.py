@@ -98,7 +98,7 @@ def run_set(name, recs, seg_len, kind):
         add("raw argmax", "", decode_raw, 0)
         add("persist 3", "", partial(decode_persist, persist=3), 0)
     for eta in ETAS if kind == "posterior" else [1.0]:
-        add("forward filter", f"η={eta:g}", partial(decode_filter, eta=eta, seg_len_readings=seg_len), 0)
+        add("forward filter", f"η={eta:g}", partial(decode_filter, eta=eta, seg_len=seg_len), 0)
     for lag in LAGS:
         lt = 0 if lag is None else lag
         for eta in ETAS if kind == "posterior" else [1.0]:

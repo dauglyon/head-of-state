@@ -10,7 +10,8 @@ import math
 
 import numpy as np
 
-from .reader import Reading, score
+from .reader import Reading, score, sticky_transition
+from .metrics import forward_posteriors, stream_counts
 
 
 def shifts_for(K: int, rotations: int) -> list[int]:
@@ -68,34 +69,22 @@ def decode_persist(p: np.ndarray, persist: int) -> list[int]:
     return out
 
 
-def decode_filter(p: np.ndarray, eta: float, seg_len_readings: float) -> list[int]:
-    """b_t(k) ∝ p_t(k)^η · Σ_j b_{t-1}(j)·A_jk, with A_kk = 1 - 1/L and the rest spread evenly
-    (D1: L is the stream's declared typical segment length, in readings)."""
-    K = p.shape[1]
-    stay = 1.0 - 1.0 / max(seg_len_readings, 1.0 + 1e-9)
-    A = np.full((K, K), (1.0 - stay) / (K - 1))
-    np.fill_diagonal(A, stay)
-    b, out = np.full(K, 1.0 / K), []
-    for pt in p:
-        b = (b @ A) * np.power(np.maximum(pt, 1e-12), eta)
-        b /= b.sum()
-        out.append(int(b.argmax()))
-    return out
+def decode_filter(p: np.ndarray, eta: float, seg_len: float, gap=1) -> list[int]:
+    """Labels from the sticky forward filter (metrics.forward_posteriors): seg_len in tokens, gap the
+    tokens between readings."""
+    return [int(x) for x in forward_posteriors(p, eta, seg_len, None, gap).argmax(1)]
 
 
-def _transition(K: int, seg_len_readings: float) -> np.ndarray:
-    stay = 1.0 - 1.0 / max(seg_len_readings, 1.0 + 1e-9)
-    A = np.full((K, K), (1.0 - stay) / (K - 1))
-    np.fill_diagonal(A, stay)
-    return A
+def _transition(K: int, seg_len: float, gap: int = 1) -> np.ndarray:
+    return sticky_transition(K, seg_len, gap)
 
 
-def decode_fixedlag(p: np.ndarray, eta: float, seg_len_readings: float, lag: int) -> list[int]:
+def decode_fixedlag(p: np.ndarray, eta: float, seg_len: float, lag: int, gap: int = 1) -> list[int]:
     """Fixed-lag smoothing: the state at reading t is decided at reading t+lag, from the forward
     belief at t and the evidence of readings t+1..t+lag (same transition and η as decode_filter).
     score() then measures delay in positions; the decision latency is that delay plus `lag`."""
     K = p.shape[1]
-    A = _transition(K, seg_len_readings)
+    A = _transition(K, seg_len, gap)
     e = np.power(np.maximum(p, 1e-12), eta)
     alpha, a = [], np.full(K, 1.0 / K)
     for et in e:
@@ -124,14 +113,14 @@ def surprisal_z(neutral_logp, window: int = 64) -> np.ndarray:
     return z
 
 
-def decode_filter_hazard(p: np.ndarray, rec: dict, eta: float, seg_len_readings: float, gamma: float) -> list[int]:
+def decode_filter_hazard(p: np.ndarray, rec: dict, eta: float, seg_len: float, gamma: float) -> list[int]:
     """decode_filter with a per-token switch probability: 1/L times exp(gamma * z_t), z_t the
     surprisal z-score of token t (EM-LLM-style boundary signal), capped at 0.5."""
     K = p.shape[1]
     z = surprisal_z(rec["neutral"])
     b, out = np.full(K, 1.0 / K), []
     for t, pt in enumerate(p):
-        h = min(0.5, np.exp(gamma * max(z[t], 0.0)) / max(seg_len_readings, 1.0 + 1e-9))
+        h = min(0.5, np.exp(gamma * max(z[t], 0.0)) / max(seg_len, 1.0 + 1e-9))
         b = (1 - h) * b + h * (1 - b) / (K - 1)
         b = b * np.power(np.maximum(pt, 1e-12), eta)
         b /= b.sum()
@@ -145,38 +134,43 @@ def as_readings(p: np.ndarray, pos: np.ndarray, states: list[int]) -> list[Readi
             for i, (n, r, s) in enumerate(zip(pos, raw, states))]
 
 
+def decided_positions(rec: dict, pos: np.ndarray) -> np.ndarray:
+    """Position at which each reading was available: saved when the run kept it; for older bisection
+    runs, a probe is decided at the next regular reading (the next multiple of the stride)."""
+    if "decided" in rec:
+        return np.asarray(rec["decided"])
+    stride = int(rec.get("stride", 1))
+    if stride <= 1:
+        return pos
+    return np.minimum(-(-pos // stride) * stride, max(int(pos[-1]), 1))
+
+
 def evaluate(records: list[dict], decoder, rotations: int, stride: int = 1, prior_power: float = 0.0,
              calibrate: bool = False):
-    """Pool score() over streams. decoder(p) -> committed state per reading."""
-    tot = dict(readings=0, raw_ok=0, com_ok=0, true=0, found=0, spurious=0, delay_sum=0.0, tokens=0)
+    """Pool per-token scores over streams (metrics.stream_counts). decoder(p) -> committed state per
+    reading; accuracy_raw is the same scoring applied to the likeliest state of each reading."""
+    tok = raw_ok = com_ok = true = found = spurious = 0
+    delay_sum, tokens = 0.0, 0
     for rec in records:
         p, pos = probs(rec, rotations, stride, prior_power, calibrate)
+        start = int(rec.get("score_from", 1))   # decode and score from this token on
+        keep = pos >= start
+        p, pos = p[keep], pos[keep]
         if len(p) == 0:
             continue
         states = decoder(p, rec) if getattr(decoder, "uses_record", False) else decoder(p)
-        rs = as_readings(p, pos, states)
-        start = rec.get("score_from", 1)   # decode the whole stream, score only from this position on
-        if start > 1:
-            rs = [r for r in rs if r.pos >= start]
-            if rs:
-                rs[0].switched = False
-        m = score(rs, rec["gold"])
-        n = m["readings"]
-        tot["readings"] += n
-        tot["raw_ok"] += round(m["accuracy_raw"] * n)
-        tot["com_ok"] += round(m["accuracy_committed"] * n)
-        tot["true"] += m["true_switches"]
-        tot["found"] += m["switches_found"]
-        tot["spurious"] += m["spurious_switches"]
-        if m["switches_found"]:
-            tot["delay_sum"] += m["mean_delay_tokens"] * m["switches_found"]
-        tot["tokens"] += rec["n_tokens"] - rec.get("score_from", 1) + 1
-    r = max(tot["readings"], 1)
+        dec = decided_positions(rec, pos)
+        c = stream_counts(states, p, rec["gold"], pos, ks=(8,), decided=dec, start_token=start)
+        c_raw = stream_counts(p.argmax(1), p, rec["gold"], pos, ks=(8,), decided=dec, start_token=start)
+        tok += c["n"]; com_ok += c["ok"]; raw_ok += c_raw["ok"]
+        true += c["true_sw"]; found += c["found"]; spurious += c["spurious"]; delay_sum += c["delay_sum"]
+        tokens += rec["n_tokens"] - start + 1
+    t = max(tok, 1)
     return {
-        "accuracy_raw": tot["raw_ok"] / r,
-        "accuracy_committed": tot["com_ok"] / r,
-        "switches_matched": tot["found"],
-        "true_switches": tot["true"],
-        "mean_delay_tokens": tot["delay_sum"] / tot["found"] if tot["found"] else math.nan,
-        "spurious_per_1k_tokens": 1000 * tot["spurious"] / max(tot["tokens"], 1),
+        "accuracy_raw": raw_ok / t,
+        "accuracy_committed": com_ok / t,
+        "switches_matched": found,
+        "true_switches": true,
+        "mean_delay_tokens": delay_sum / found if found else math.nan,
+        "spurious_per_1k_tokens": 1000 * spurious / max(tokens, 1),
     }

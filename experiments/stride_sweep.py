@@ -29,9 +29,9 @@ def main():
     for rot in (1, 2):
         for stride in (1, 2, 4, 8, 16):
             causal = [("raw", decode_raw, 0)] + [(f"persist {n}", partial(decode_persist, persist=n), 0) for n in (2, 3, 5)]
-            causal += [(f"filter η={e:g}", partial(decode_filter, eta=e, seg_len_readings=SEG / stride), 0)
+            causal += [(f"filter η={e:g}", partial(decode_filter, eta=e, seg_len=SEG, gap=stride), 0)
                        for e in (0.25, 0.5, 1, 2, 4)]
-            lagged = [(f"lag {l} η={e:g}", partial(decode_fixedlag, eta=e, seg_len_readings=SEG / stride, lag=l), l)
+            lagged = [(f"lag {l} η={e:g}", partial(decode_fixedlag, eta=e, seg_len=SEG, lag=l, gap=stride), l)
                       for l in (1, 2, 4) for e in (0.5, 1, 2)]
             out = []
             for decs in (causal, lagged):

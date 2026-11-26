@@ -23,7 +23,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import wikisection  # noqa: E402
 from common import MODEL, RUNS  # noqa: E402
-from scored_runs import FROZEN  # noqa: E402
+from scored_runs import STRIDE8  # noqa: E402
 
 OUT = RUNS / "seam"
 TARGET, SHIFT, NEAR = 15000, 1000, 500
@@ -71,7 +71,7 @@ def run():
     OUT.mkdir(parents=True, exist_ok=True)
     a = build(tok)
     b = shifted(tok, a)
-    reader = LoggingReader(model, tok, wikisection.STATES, unit=wikisection.UNIT, **FROZEN)
+    reader = LoggingReader(model, tok, wikisection.STATES, unit=wikisection.UNIT, **STRIDE8)
     with (OUT / "seam.jsonl").open("w") as f:
         for s in (a, b):
             rec = run_stream(reader, s, tok)
@@ -92,7 +92,7 @@ def report():
     rows = {}
     for r in recs:
         p, pos = probs(r, rotations=1)
-        lab = np.asarray(decode_persist(p, FROZEN["persist"]))
+        lab = np.asarray(decode_persist(p, STRIDE8["persist"]))
         gold = r["gold"]
         g = [gold[x - 1] for x in pos]
         # character offset of every token start, to identify the same switch in both runs

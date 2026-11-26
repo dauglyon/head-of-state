@@ -114,7 +114,7 @@ def report():
         out = {}
         for r in recs:
             p, pos = probs(r, rotations=1)
-            post = forward_posteriors(p, 1.0, L / (pos[1] - pos[0] if len(pos) > 1 else 1), "running")
+            post = forward_posteriors(p, 1.0, L, "running", int(pos[1] - pos[0]) if len(pos) > 1 else 1)
             out[r["id"]] = expand(post.argmax(1), pos, r["n_tokens"])
         return out
 
@@ -165,7 +165,7 @@ def report():
                                  fused(q_by_id[i], asked_by[i][0], asked_by[i][1], L, e))))
             rows.append((f"asking alone, every {stride}th token", "forward filter η=1",
                          lambda i: (lambda p, pos: (lambda post: (post, post.argmax(1), pos))(
-                             forward_posteriors(p, 1.0, L / stride)))(*asked_by[i])))
+                             forward_posteriors(p, 1.0, L, None, stride)))(*asked_by[i])))
         rows += extra or []
         for rname, dname, fn in rows:
             counts, tokens = [], 0
@@ -213,12 +213,16 @@ def report():
             start = s1_q[i]["positions"][0]
             if fn is None:
                 p, pos = probs(s1_q[i], rotations=1)
-                post = forward_posteriors(p, 1.0, 190.5 / 2)
+                post = forward_posteriors(p, 1.0, 190.5, None, 2)
             else:
                 post = fn(i)
                 pos = np.arange(1, len(post) + 1)
             keep = pos >= start
-            c = stream_counts(post[keep].argmax(1), post[keep], meta[i]["gold"], pos[keep])
+            if fn is not None:               # decode from the same position as the asked readings
+                post = forward_posteriors(dmw.proba(X(i))[start - 1:], 1.0, 190.5)
+                keep = np.ones(len(post), dtype=bool)
+                pos = np.arange(start, start + len(post))
+            c = stream_counts(post[keep].argmax(1), post[keep], meta[i]["gold"], pos[keep], start_token=start)
             all_counts.append(c); all_tok += meta[i]["n_tokens"] - start + 1
             per_len.setdefault(meta[i]["prev_len"], []).append(c)
         m = pool(all_counts, all_tok)

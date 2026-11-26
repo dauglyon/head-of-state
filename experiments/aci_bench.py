@@ -26,7 +26,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import common  # noqa: E402
 from common import RUNS  # noqa: E402
-from scored_runs import FROZEN  # noqa: E402
+from scored_runs import STRIDE8  # noqa: E402
 
 DATA = common.DATA / "aci-bench"
 OUT = RUNS / "aci"
@@ -76,8 +76,8 @@ def run():
     model = AutoModelForCausalLM.from_pretrained(path, dtype=torch.bfloat16, device_map="cuda")
     OUT.mkdir(parents=True, exist_ok=True)
     streams = load()
-    for name, subset, settings in (("frozen", streams, FROZEN),
-                                   ("every_token", streams[:3], dict(FROZEN, stride=1, persist=3))):
+    for name, subset, settings in (("frozen", streams, STRIDE8),
+                                   ("every_token", streams[:3], dict(STRIDE8, stride=1, persist=3))):
         reader = H2OReader(model, tok, STATES, unit=UNIT, **settings)
         n = sec = 0
         with (OUT / f"{name}.jsonl").open("w") as f:
@@ -109,7 +109,7 @@ def report():
                     if dname.startswith("persist"):
                         q, lab = p, np.asarray(decode_persist(p, persist))
                     else:
-                        q = forward_posteriors(p, 1.0, SEG_LEN / stride)
+                        q = forward_posteriors(p, 1.0, SEG_LEN, None, stride)
                         lab = q.argmax(1)
                     counts.append(stream_counts(lab, q, r["gold"], pos))
                 m = pool(counts, tokens)

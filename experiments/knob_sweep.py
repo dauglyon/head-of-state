@@ -37,7 +37,7 @@ def main():
                 decoders = [("raw", "", decode_raw)]
                 decoders += [("persist", n, partial(decode_persist, persist=n)) for n in PERSISTS]
                 decoders += [(f"filter_L×{f:g}", eta, partial(decode_filter, eta=eta,
-                              seg_len_readings=a.seg_len * f / stride))
+                              seg_len=a.seg_len * f, gap=stride))
                              for f in SEG_LEN_FACTORS for eta in ETAS]
                 for name, param, dec in decoders:
                     m = evaluate(records, dec, rot, stride, pp)

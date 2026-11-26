@@ -28,6 +28,7 @@ import math
 import string
 from dataclasses import dataclass, field
 
+import numpy as np
 import torch
 
 INSTRUCTION = (
@@ -56,6 +57,8 @@ class Reading:
     start: int | None = None    # first token position this reading labels (None: only `pos`); with
                                 # stride N a reading labels the tokens since the previous reading
     detail: list | None = None  # per-ordering letter log-probabilities, when the reader keeps them
+    decided: int | None = None  # stream position at which this reading was available (None: `pos`);
+                                # bisection probes are placed earlier than they are decided
 
 
 @dataclass
@@ -320,7 +323,8 @@ class StreamStateReader:
             raw = int(pp.argmax())
             state, sw = self._commit(raw)
             pos = self._last_read + offset
-            r = Reading(pos, pp.tolist(), raw, state, sw, start=(out[-1].pos if out else self._last_read) + 1, detail=dd)
+            r = Reading(pos, pp.tolist(), raw, state, sw, start=(out[-1].pos if out else self._last_read) + 1, detail=dd,
+                        decided=len(self.stream))
             out.append(r)
         self._last_read = len(self.stream)
         self.readings += out
@@ -395,49 +399,58 @@ def build_stream(tok, segments: list[tuple[str, str]], names: list[str]):
 
 
 def score(readings: list[Reading], gold: list[int]) -> dict:
-    """Token accuracy, delay after each true switch, and switches that should not have happened."""
+    """Token accuracy, delay after each true switch, and switches that should not have happened.
+
+    True switches come from the token-level gold up to the last reading, so a segment that no reading
+    lands in still counts (as missed). A true switch is found by a commit event into its new state from
+    a reading whose position falls inside the new segment; matching on the committed state alone would
+    credit a decoder that never left the state the stream returns to (gold A-B-A, decoder stays on A).
+    Delay runs from the switch token to the position at which the committing reading was available
+    (`decided`), so waiting for the next reading and decisions made after a bisection both count.
+    """
     if not readings:
         return {}
-    g = [gold[r.pos - 1] for r in readings]
+    last = readings[-1].pos
+    gtok = gold[:last]
     # Token accuracy counts every token a reading labels (all tokens since the previous reading).
     spans = [range((r.start or r.pos) - 1, r.pos) for r in readings]
     n_tok = sum(len(sp) for sp in spans)
     acc_raw = sum(gold[t] == r.raw for r, sp in zip(readings, spans) for t in sp) / n_tok
     acc_com = sum(gold[t] == r.state for r, sp in zip(readings, spans) for t in sp) / n_tok
-    true_sw = [i for i in range(1, len(g)) if g[i] != g[i - 1]]
-    # A true switch is found only by a commit event into its new state inside its segment.
-    # Matching on the committed state alone would credit a tool that never left the state the
-    # stream returns to (gold A-B-A, tool stays on A), and that credit would hide a false commit.
+    starts = [t for t in range(1, len(gtok)) if gtok[t] != gtok[t - 1]]      # 0-based first token of each segment
+    commits = [r for r in readings if r.switched]
     delays = []
-    for j, i in enumerate(true_sw):
-        end = true_sw[j + 1] if j + 1 < len(true_sw) else len(g)
-        hit = next((k for k in range(i, end) if readings[k].switched and readings[k].state == g[i]), None)
-        # Delay runs from the token where the true switch happens, not from the first reading after it,
-        # so that the wait for the next reading (up to stride - 1 tokens) is counted.
-        t = readings[i].pos
-        while t > readings[i - 1].pos + 1 and gold[t - 2] == g[i]:
-            t -= 1
-        delays.append(math.nan if hit is None else readings[hit].pos - t)
+    for j, t in enumerate(starts):
+        end = starts[j + 1] if j + 1 < len(starts) else len(gtok)
+        hit = next((r for r in commits if t + 1 <= r.pos <= end and r.state == gtok[t]), None)
+        delays.append(math.nan if hit is None else (hit.decided or hit.pos) - (t + 1))
     found = [d for d in delays if not math.isnan(d)]
-    n_sw = sum(r.switched for r in readings)       # segments are disjoint: each commit matches at most once
     return {
-        "readings": len(g),
+        "readings": len(readings),
         "accuracy_raw": round(acc_raw, 4),
         "accuracy_committed": round(acc_com, 4),
-        "true_switches": len(true_sw),
+        "true_switches": len(starts),
         "switches_found": len(found),
         "mean_delay_tokens": round(sum(found) / len(found), 1) if found else None,
-        "spurious_switches": n_sw - len(found),
+        "spurious_switches": len(commits) - len(found),
     }
 
 
 # ------------------------------------------------------------------ fixed-lag Viterbi
-def sticky_log_transition(K: int, seg_len: float) -> torch.Tensor:
-    """log A for the sticky chain shared with the forward filter: stay 1 - 1/L, the rest spread evenly."""
+def sticky_transition(K: int, seg_len: float, gap: int = 1) -> np.ndarray:
+    """Transition between two readings `gap` tokens apart, for a chain that stays with probability
+    1 - 1/L per token (L = declared segment length in tokens) and spreads the rest evenly: the per-token
+    matrix raised to the power `gap`. Raising the per-token chain, rather than putting 1/(L/gap) into
+    one step, keeps it sticky when segments are shorter than a few readings."""
     stay = 1.0 - 1.0 / max(seg_len, 1.0 + 1e-9)
-    A = torch.full((K, K), (1.0 - stay) / (K - 1), dtype=torch.float64)
-    A.fill_diagonal_(stay)
-    return A.log()
+    A = np.full((K, K), (1.0 - stay) / (K - 1))
+    np.fill_diagonal(A, stay)
+    return np.linalg.matrix_power(A, max(int(gap), 1))
+
+
+def sticky_log_transition(K: int, seg_len: float, gap: int = 1) -> torch.Tensor:
+    """log of sticky_transition, as used by FixedLagViterbi."""
+    return torch.tensor(np.log(sticky_transition(K, seg_len, gap)), dtype=torch.float64)
 
 
 class FixedLagViterbi:

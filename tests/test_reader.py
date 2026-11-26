@@ -247,4 +247,16 @@ n_probe = sum(1 for r in out if r.pos % 8)
 d = max(abs(a - b) for r in out for a, b in zip(r.probs, every[r.pos]))
 assert n_probe >= 3 * (len(ids) // 8 - 1) and d < 1e-4, (n_probe, d)
 print(f"11b ok  hybrid with forced disagreements: {n_probe} probes, all equal every-token readings ({d:.1e})")
+# 12: audit regressions. (a) A segment between two readings still counts as a true switch, and as
+#     missed. (b) A switch placed by a bisection probe is scored from when it was decided, not where it
+#     was placed. (c) The transition stays sticky when segments are shorter than two readings.
+from head_of_state.reader import sticky_transition  # noqa: E402
+gold12 = [0] * 9 + [1] * 4 + [0] * 3                # B occupies tokens 10-13 only; readings at 8 and 16
+m12 = score([Reading(8, [], 0, 0, False), Reading(16, [], 0, 0, False)], gold12)
+assert m12["true_switches"] == 2 and m12["switches_found"] == 0, m12
+gold12b = [0] * 10 + [1] * 6                         # switch at token 11; probe at 11 decided at 16
+m12b = score([Reading(8, [], 0, 0, False), Reading(11, [], 1, 1, True, decided=16), Reading(16, [], 1, 1, False)], gold12b)
+assert m12b["switches_found"] == 1 and m12b["mean_delay_tokens"] == 5.0, m12b
+assert sticky_transition(2, 12, 8)[0, 0] > 0.5 and abs(sticky_transition(5, 30, 1)[0, 0] - (1 - 1 / 30)) < 1e-12
+print("12  ok  unread segments count as missed; probe switches scored at decision time; sticky across 8-token gaps")
 print("all mechanics tests passed")

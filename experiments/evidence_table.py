@@ -51,7 +51,7 @@ def emission(recs):
     return out
 
 
-def rows_for(name, data, L, cost, variants):
+def rows_for(name, data, L, cost, variants, gap=1):
     tokens = sum(d[3] for d in data)
     batch_prior = np.concatenate([d[0] for d in data]).mean(0)   # unlabelled positions of this set
     lines = []
@@ -64,7 +64,7 @@ def rows_for(name, data, L, cost, variants):
                 q, lab = p, np.asarray(decode_persist(p, kw["n"]))
             else:
                 prior = {"none": None, "batch": batch_prior, "running": "running"}[kw.get("prior", "none")]
-                q = forward_posteriors(p, kw.get("eta", 1.0), L, prior)
+                q = forward_posteriors(p, kw.get("eta", 1.0), L, prior, gap)
                 lab = q.argmax(1)
             counts.append(stream_counts(lab, q, gold, pos, KS))
         m = pool(counts, tokens, KS)
@@ -104,8 +104,9 @@ def main():
         recs = load(RUNS / "winask" / f"S3dev_W{W}.jsonl")
         if recs:
             ms = 1000 * sum(r["seconds"] for r in recs) / sum(len(r["positions"]) for r in recs)
-            for line in rows_for(f"asking, last {W} tokens only ({W // 30}×), every 2nd token", asked(recs, 1), 15.0,
-                                 (f"{ms / 2:.0f}", f"1 pass over opening + {W} tokens + question, per 2 tokens"), BASIC):
+            for line in rows_for(f"asking, last {W} tokens only ({W // 30}×), every 2nd token", asked(recs, 1), 30.0,
+                                 (f"{ms / 2:.0f}", f"1 pass over opening + {W} tokens + question, per 2 tokens"), BASIC,
+                                 gap=2):
                 print(line)
     acts = RUNS / "activations"
     meta = json.loads((acts / "streams.json").read_text()) if (acts / "streams.json").exists() else None

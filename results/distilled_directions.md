@@ -12,7 +12,7 @@
 | distilled directions | fixed-lag Viterbi, lag 8 (+8 latency) | 0.756 | 0.37 | 0.46 | 65/97 | 19.7 | 13.7 | 0.518 | 0.153 |
 | distilled + asked every 8th token, fused | forward filter, cheap η=1 | 0.790 | 0.21 | 0.27 | 82/97 | 13.5 | 29.1 | 0.351 | 0.135 |
 | distilled + asked every 8th token, fused | forward filter, cheap η=0.25 | 0.743 | 0.15 | 0.32 | 81/97 | 25.6 | 6.7 | 0.415 | 0.150 |
-| asking alone, every 8th token | forward filter η=1 | 0.707 | 0.16 | 0.34 | 74/97 | 38.3 | 2.0 | 0.510 | 0.230 |
+| asking alone, every 8th token | forward filter η=1 | 0.701 | 0.14 | 0.33 | 75/97 | 39.1 | 2.0 | 0.520 | 0.238 |
 
 ## WikiSection validation streams 3–6 (5455 tokens, regimes recur); directions fitted on streams 0–2 labelled by asking (regimes seen in warm-up: 10 of 10)
 
@@ -33,5 +33,5 @@
 
 | Readout | decoder | token acc. | matched | mean delay | spurious /1k | delay at 50 / 200 / 800 / 3000 |
 |---|---|---|---|---|---|---|
-| distilled directions (fitted on WikiSection validation) | forward filter η=1 | 0.808 | 12/12 | 13.3 | 30.4 | 19 / 5 / 23 / 6 |
-| asking, full history, every 2nd token | forward filter η=1 | 0.919 | 12/12 | 23.7 | 2.9 | 21 / 7 / 54 / 13 |
+| distilled directions (fitted on WikiSection validation) | forward filter η=1 | 0.704 | 12/12 | 13.3 | 31.9 | 19 / 5 / 23 / 6 |
+| asking, full history, every 2nd token | forward filter η=1 | 0.881 | 12/12 | 23.7 | 2.9 | 21 / 7 / 54 / 13 |

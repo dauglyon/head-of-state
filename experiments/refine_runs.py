@@ -22,7 +22,7 @@ sys.path.insert(0, str(HERE))
 import aci_bench  # noqa: E402
 import pubmed_rct  # noqa: E402
 from common import RUNS  # noqa: E402
-from scored_runs import FROZEN, s3_test  # noqa: E402
+from scored_runs import STRIDE8, s3_test  # noqa: E402
 
 OUT = RUNS / "refine"
 SETS = {"S3test": (30.0, RUNS / "h2o" / "S3test.jsonl"), "ACI": (aci_bench.SEG_LEN, RUNS / "aci" / "frozen.jsonl")}
@@ -40,7 +40,7 @@ def run():
     OUT.mkdir(parents=True, exist_ok=True)
     for name, streams, states, unit in (("S3test", s3_test(), pubmed_rct.STATES, pubmed_rct.UNIT),
                                         ("ACI", aci_bench.load(), aci_bench.STATES, aci_bench.UNIT)):
-        reader = H2OReader(model, tok, states, unit=unit, refine=True, **FROZEN)
+        reader = H2OReader(model, tok, states, unit=unit, refine=True, **STRIDE8)
         n = sec = reads = 0
         with (OUT / f"{name}.jsonl").open("w") as f:
             for s in streams:
@@ -55,7 +55,7 @@ def viterbi(p, seg_len_tokens, positions, lag):
     declared length in readings at the median reading spacing. lag in readings; None = offline."""
     from head_of_state.reader import FixedLagViterbi, sticky_log_transition
     gap = float(np.median(np.diff(positions))) if len(positions) > 1 else 1.0
-    v = FixedLagViterbi(sticky_log_transition(p.shape[1], max(seg_len_tokens / gap, 1.01)), lag)
+    v = FixedLagViterbi(sticky_log_transition(p.shape[1], seg_len_tokens, round(gap)), lag)
     out = []
     for row in np.log(np.maximum(p, 1e-12)):
         out += v.push(row)
@@ -63,7 +63,7 @@ def viterbi(p, seg_len_tokens, positions, lag):
 
 
 def report():
-    from head_of_state.decoders import decode_persist, probs
+    from head_of_state.decoders import decided_positions, decode_persist, probs
     from head_of_state.metrics import pool, stream_counts
     decoders = (("persist 1", lambda p, pos, L: np.asarray(decode_persist(p, 1)), 0),
                 ("Viterbi, lag 1 reading", lambda p, pos, L: viterbi(p, L, pos, 1), 8),
@@ -79,7 +79,8 @@ def report():
                     p, pos = probs(r, rotations=1)
                     if "positions" not in r:      # older records: readings at multiples of the stride
                         pos = np.arange(1, len(p) + 1) * r["stride"]
-                    counts.append(stream_counts(dec(p, pos, L), p, r["gold"], pos, ks=(2, 8, 16)))
+                    counts.append(stream_counts(dec(p, pos, L), p, r["gold"], pos, ks=(2, 8, 16),
+                                                decided=decided_positions(r, pos)))
                     tokens += r["n_tokens"]
                     reads += len(p)
                 m = pool(counts, tokens, ks=(2, 8, 16))

@@ -113,7 +113,7 @@ def fmt(m, cost):
 def report():
     load = lambda f: [json.loads(l) for l in open(f)]
     hdr = "| Method | decoder | token acc. | matched | mean delay | spurious/1k | ms/token |\n|---|---|---|---|---|---|---|"
-    filt = lambda L, stride=1: partial(decode_filter, eta=1.0, seg_len_readings=L / stride)
+    filt = lambda L, stride=1: partial(decode_filter, eta=1.0, seg_len=L, gap=stride)
     p3 = partial(decode_persist, persist=3)
 
     print("## C. S3 dev, 10 abstracts (declared length 30)\n" + hdr)

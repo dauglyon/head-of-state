@@ -48,7 +48,7 @@ def report():
         for rot in (1, 2):
             for cal in (False, True):
                 decs = [("raw", decode_raw)] + [(f"persist {n}", partial(decode_persist, persist=n)) for n in (2, 3)]
-                decs += [(f"filter η={e:g}", partial(decode_filter, eta=e, seg_len_readings=seg / 8)) for e in (0.5, 1, 2, 4)]
+                decs += [(f"filter η={e:g}", partial(decode_filter, eta=e, seg_len=seg, gap=8)) for e in (0.5, 1, 2, 4)]
                 best, delay, raw_acc = (0, ""), (math.inf, ""), None
                 for n, d in decs:
                     m = evaluate(recs, d, rotations=rot, calibrate=cal)

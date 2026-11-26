@@ -24,7 +24,7 @@ sys.path.insert(0, str(HERE))
 import pubmed_rct  # noqa: E402
 import wikisection  # noqa: E402
 from common import RUNS  # noqa: E402
-from scored_runs import FROZEN, s2_null, s3_test  # noqa: E402
+from scored_runs import STRIDE8, s2_null, s3_test  # noqa: E402
 
 OUT = RUNS / "h2o"
 
@@ -41,7 +41,7 @@ def run():
     OUT.mkdir(parents=True, exist_ok=True)
     for name, streams, states, unit in (("S3test", s3_test(), pubmed_rct.STATES, pubmed_rct.UNIT),
                                         ("S2null", s2_null(tok), wikisection.STATES, wikisection.UNIT)):
-        reader = H2OReader(model, tok, states, unit=unit, **FROZEN)
+        reader = H2OReader(model, tok, states, unit=unit, **STRIDE8)
         n = sec = 0
         with (OUT / f"{name}.jsonl").open("w") as f:
             for s in streams:
@@ -67,7 +67,7 @@ def report():
                     if dname == "persist 1":
                         q, lab = p, np.asarray(decode_persist(p, 1))
                     else:
-                        q = forward_posteriors(p, 1.0, L / FROZEN["stride"])
+                        q = forward_posteriors(p, 1.0, L, None, STRIDE8["stride"])
                         lab = q.argmax(1)
                     counts.append(stream_counts(lab, q, r["gold"], pos))
                     tokens += r["n_tokens"]
