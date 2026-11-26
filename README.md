@@ -5,30 +5,45 @@
 Zero-shot regime tracking from an open-weights LLM's output head.
 Hidden-state inference from plain-English descriptions.
 
-Head of State labels every position of a token stream with one of several hidden states (regimes), each
-described in one line of plain English at run time, and marks where the state switches. The stream sits
-in an open-weights causal language model's key/value cache; at each reading point a short multiple-choice
-question is appended, the model's existing output head gives a probability for each state, and the
-question is removed from the cache again. An HMM-like decoder (persist rule, sticky forward filter or
-fixed-lag Viterbi) turns the readings into state labels. No weights change and nothing is fitted per
-problem.
+Head of State labels a text stream with hidden states (regimes) defined in plain English at run time.
+For every token it reports which state the text is in, and it marks where the state changes. Nothing is
+trained: the language model's weights are not changed and no classifier is fitted.
 
-**Status: early prototype.** All numbers are preliminary, from small samples, with Qwen3.5-4B on one 12 GB GPU.
+A state is a name and a one-line description. The built-in demo, a support call, uses five:
+
+```
+greeting         opening pleasantries and identifying the caller
+problem          the customer describes what is wrong
+troubleshooting  the agent gives steps to try and the customer tries them
+billing          discussion of charges, refunds or payment
+closing          wrapping up and saying goodbye
+```
+
+The text passes once through an open-weights language model and stays in its key/value cache. At each
+reading point it takes a Jev-style readout: a short multiple-choice question about the most recent text
+is appended, the probabilities the model's output head gives the answer options are the reading, and the
+question is then removed from the cache. An HMM-like filter (persist rule, sticky forward filter or
+fixed-lag Viterbi) turns the readings into segments.
+
+**Status: early prototype, with no settled use case yet.** Descriptions of problems that resemble this
+one are welcome in the issue tracker.
+
+## Results so far
+
+Preliminary, from small samples, with Qwen3.5-4B on one 12 GB GPU. Every run is in `docs/LOG.md`.
 
 | Data (sample) | Result |
 |---|---|
-| Built-in support-call demo (245 tokens, 4 switches) | token accuracy 0.84; 4 of 4 switches found, 10 tokens late on average; no spurious switches |
-| PubMed 20k RCT dev (10 abstracts, 36 switches, 5 hidden states) | token accuracy 0.79–0.80; switches detected about 23 tokens late with the persist rule (a median sentence is 30 tokens); 5.8 spurious switches per 1,000 tokens, 1–2 with fixed-lag Viterbi |
-| WikiSection en_disease test (12 streams, one symptom→treatment switch each, 10 hidden states offered) | token accuracy 0.88 around the switch; switches detected about 24 tokens late, with no growth over 50 to 3,000 tokens of earlier text (3 streams per length) |
-| WikiSection en_disease validation (2 streams, 15 switches, 10 hidden states) | token accuracy 0.56–0.58; no decoder setting kept spurious switches under 2 per 1,000 tokens |
-| Cost per token | 150 ms reading every token with 2 option orderings (default); 14–20 ms reading every 8th token with 1 ordering, which on the demo and PubMed sets matched the default's accuracy |
+| Support-call demo (245 tokens, 4 switches) | token accuracy 0.84; 4 of 4 switches found, 10 tokens late on average; no spurious switches |
+| PubMed 20k RCT abstracts, dev (10 abstracts, 36 switches, 5 states) | token accuracy 0.79–0.80; switches committed about 23 tokens late (a median sentence is 30 tokens); 5.8 spurious switches per 1,000 tokens, 1–2 with fixed-lag Viterbi |
+| WikiSection disease articles, test (12 streams, one switch each, 10 states offered) | token accuracy 0.88 around the switch; switches about 24 tokens late, not growing over 50 to 3,000 tokens of earlier text |
+| WikiSection disease articles, validation (2 streams, 15 switches, 10 states) | token accuracy 0.56–0.58; more than 2 spurious switches per 1,000 tokens with every decoder tried |
+| Cost per token | 150 ms reading every token; 14–20 ms reading every 8th token, at the same accuracy on the demo and PubMed |
 
-Known limits: switches are detected late (raw readings turn about 16 tokens after a true switch on
-PubMed abstracts); showing the question only the last 30–120 tokens does not shorten this, so the lag
-is not caused by earlier history. Readouts built on next-token likelihood have been weaker throughout.
-Activation directions distilled from the asked readings cost 0.5 ms per token but generalise poorly:
-0.73–0.76 token accuracy on 30 further PubMed abstracts, 0.31 on WikiSection disease sections (asking:
-0.60). Fused with asking every 8th token they reached 0.79 on PubMed at about 15 ms per token (`docs/LOG.md`).
+Known limits: switches are detected late. On PubMed abstracts the readings turn about 16 tokens after
+the true switch, and showing the question only the last 30–120 tokens does not shorten this. Many similar
+states (ten disease-article section types) are hard. Readouts built on next-token likelihood or on
+activation directions have been weaker than the question so far.
 
 ## Run the demo
 
@@ -39,8 +54,10 @@ uv run head-of-state --demo --stride 8 --rotations 1 --persist 1   # read every 
 uv run python tests/test_reader.py        # mechanics tests on tiny random models
 ```
 
-Datasets for the experiments: `experiments/data/download.sh`. Method and decoder notes: `docs/method.md`;
-the original brief: `docs/HANDOFF.md`; evaluation plan: `docs/TEST_SUITE.md`; planned experiments: `docs/EXPERIMENTS.md`; prior work:
-`docs/research/prior-art.md`; every run, its command and its result: `docs/LOG.md`.
+Own states and text: `--states states.json` (`{"name": "description", ...}`) and `--text file.txt`.
+
+Method and decoder notes: `docs/method.md`. Experiment log: `docs/LOG.md`; planned experiments:
+`docs/EXPERIMENTS.md`; evaluation plan: `docs/TEST_SUITE.md`; prior work: `docs/research/prior-art.md`;
+original brief: `docs/HANDOFF.md`. Datasets for the experiments: `experiments/data/download.sh`.
 
 Licensed under the Apache License 2.0 (`LICENSE`).
