@@ -323,3 +323,20 @@ given in this repository's layout and reproduce from the same code.
 - Conclusion: on held-out data the cheap frozen setting scores about 0.70, well below the 0.80 seen on
   the small dev sample. Some states are rarely mistaken and others are often confused with related
   states, so the descriptions of those states are the next lever.
+
+**2026-11-25 · S1 seam control (re-anchoring the cache)**
+- Commands: `uv run python -I experiments/seam_runs.py run`, then `... report` → `results/seam_runs.md`
+- Setup: one stream of whole WikiSection en_disease test articles (15,440 tokens), frozen settings.
+  The cache re-anchors to opening + last 2,048 tokens when it would pass 8,192, at stream positions
+  7,936 and 13,824. Run B starts about 1,000 tokens later, so each switch sits at a different distance
+  from the seams.
+- Result:
+  - Switches within 500 tokens after a seam: 7 of 7 found, mean delay 20.6 tokens.
+  - Elsewhere: 57 of 69 found, 34.0 tokens.
+  - Matched pairs (the same switch near a seam in one run and away from it in the other) were no
+    slower near the seam.
+  - Committed switches in the 24 tokens right after a seam: 4 across the 4 seams, against about 2
+    expected from the background rate. Inconclusive.
+  - The background rate on these whole-article streams is 19–21 spurious switches per 1k (persist 1).
+- Conclusion: re-anchoring does not delay or lose switches. A small label jump right at the seam is
+  possible but not established with 4 seams.
