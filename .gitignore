@@ -1,0 +1,37 @@
+# Environments and caches
+.venv/
+__pycache__/
+*.py[cod]
+.cache/
+.pytest_cache/
+
+# Data, model weights, checkpoints, raw outputs (download or regenerate instead)
+/data/
+experiments/runs/
+*.jsonl
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.ckpt
+*.gguf
+*.tar.gz
+*.zip
+*.log
+
+# Secrets
+.env
+.env.*
+*.pem
+*.key
+credentials*
+secrets*
+
+# Scratch, editor and OS files
+scratch/
+*.swp
+*~
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
