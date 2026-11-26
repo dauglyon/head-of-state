@@ -418,6 +418,8 @@ class FixedLagViterbi:
         return out
 
 
+DEFAULT_MODEL = "h2oai/h2o-lightning-4b"
+
 DEMO_STATES = {
     "greeting": "opening pleasantries and identifying the caller",
     "problem": "the customer describes what is wrong",
@@ -446,8 +448,12 @@ DEMO_SEGMENTS = [
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
-    ap.add_argument("--model", default="Qwen/Qwen3.5-4B",
-                    help="any Hugging Face causal LM; 4B parameters or more is recommended")
+    ap.add_argument("--model", default=DEFAULT_MODEL,
+                    help="Hugging Face id or local path (default: H2O-Lightning-4B, a decision-tuned\n"
+                         "Qwen3.5-4B); any causal LM of 4B parameters or more, e.g. Qwen/Qwen3.5-4B")
+    ap.add_argument("--prompt", choices=["auto", "h2o", "plain"], default="auto",
+                    help="question format: h2o = H2O-Lightning's record/question/options format, plain = the\n"
+                         "original instruction format; auto picks h2o for H2O-Lightning models")
     ap.add_argument("--stride", type=int, default=1,
                     help="read the regime every Nth token (default 1: every token); the tokens since the\n"
                          "previous reading are fed in one pass and take the next reading's label, so the\n"
@@ -465,8 +471,16 @@ def main():
                     "averaged), its position and the gold states to this JSON file, for offline decoding")
     a = ap.parse_args()
 
+    import os
+
     from transformers import AutoModelForCausalLM, AutoTokenizer
-    tok = AutoTokenizer.from_pretrained(a.model)
+    h2o = a.prompt == "h2o" or (a.prompt == "auto" and "h2o-lightning" in a.model.lower())
+    if h2o and os.path.isdir(os.path.join(a.model, "tokenizer")):
+        tok = AutoTokenizer.from_pretrained(os.path.join(a.model, "tokenizer"))   # the model's own tokenizer
+    elif h2o and not os.path.isdir(a.model):
+        tok = AutoTokenizer.from_pretrained(a.model, subfolder="tokenizer")
+    else:
+        tok = AutoTokenizer.from_pretrained(a.model)
     dtype = torch.bfloat16 if torch.cuda.is_available() else torch.float32
     try:
         model = AutoModelForCausalLM.from_pretrained(a.model, dtype=dtype, device_map="auto")
@@ -477,8 +491,13 @@ def main():
     if a.states:
         import json
         states = json.load(open(a.states))
-    reader = StreamStateReader(model, tok, states, stride=a.stride, rotations=a.rotations,
-                               persist=a.persist, prior_power=a.prior_power)
+    if h2o:
+        from .h2o import H2OReader
+        reader = H2OReader(model, tok, states, stride=a.stride, rotations=a.rotations,
+                           persist=a.persist, prior_power=a.prior_power)
+    else:
+        reader = StreamStateReader(model, tok, states, stride=a.stride, rotations=a.rotations,
+                                   persist=a.persist, prior_power=a.prior_power)
     names = list(states)
     if a.text:
         ids, gold = tok(open(a.text).read(), add_special_tokens=False)["input_ids"], None

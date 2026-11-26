@@ -362,3 +362,18 @@ given in this repository's layout and reproduce from the same code.
   switches per 1k under persist 1 (base 24.5) and 4.3 under the filter (base 5.3).
 - Conclusion: the decision-tuned model is better on every measure at the same cost, including about 8
   tokens less delay and much better calibrated probabilities.
+
+**2026-11-25 · H2O-Lightning-4B made the default model**
+- Decision (owner): H2O-Lightning-4B becomes the default model of the `head-of-state` command and the
+  demo. `--prompt auto` uses its prompt format for H2O-Lightning models and the original format for any
+  other model (`--model Qwen/Qwen3.5-4B`).
+- Commands: `uv run head-of-state --demo --model <local checkout>`, with and without
+  `--stride 8 --rotations 1 --persist 1`; and `uv run head-of-state --demo --model Qwen/Qwen3.5-4B --stride 8 --rotations 1 --persist 1`
+- Result, demo:
+  - H2O-Lightning, defaults: committed accuracy 0.841, 4 of 4 switches, 9.8-token mean delay,
+    0 spurious (base model: 0.837, 4/4, 10.0, 0).
+  - H2O-Lightning, every 8th token with persist 1: 0.861, 4 of 4 switches, 2 spurious. "Thanks Priya,
+    nice to meet you" is read as closing for one reading.
+  - The base model at the same setting still gives 0.894 with no spurious switches.
+- Conclusion: on the 245-token demo the two models are on a par. The 30-abstract test comparison is
+  the evidence for the default.

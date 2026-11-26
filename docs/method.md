@@ -8,6 +8,12 @@ tables.
 
 ## Reading the hidden state from the head
 
+Default model: H2O-Lightning-4B (h2oai/h2o-lightning-4b), a Qwen3.5-4B fine-tuned to answer choice questions
+about a record. `head_of_state.h2o.H2OReader` puts the stream in that model's own prompt format (`record:`,
+`question:`, lettered `options:`, `Answer:` prefill, choice temperature 0.75); other models use the original
+instruction format of `reader.py` (`--prompt` chooses). On 30 PubMed test abstracts H2O-Lightning was better
+on every measure at the same cost (`docs/LOG.md`).
+
 `src/head_of_state/reader.py`, `StreamStateReader`.
 
 1. The opening instruction and the stream so far are held in the model's key/value cache; each
