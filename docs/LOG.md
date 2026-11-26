@@ -877,3 +877,16 @@ given in this repository's layout and reproduce from the same code.
   labels (true 11%).
 - Conclusion: no-go for story stages in both forms; the catalogue form raises the evidence without removing the
   takeover.
+
+**2026-11-26 · Question readout on the four tuning samples (attribution)**
+- Command: `H2O_LIGHTNING_PATH=<checkout> uv run python -I experiments/stated_sets.py run --set <set> --sample
+  tuning --form question` → `results/stated_sets_tuning.md`
+- Setup: the Jev-style readout with the frozen settings of joined_documents.py on the same tuning documents, same
+  names and descriptions; unit "the last utterance" for Switchboard.
+- Result, token accuracy of settled labels (next-token catalogue form; always the most common state):
+  WikiSection articles 0.675 (0.674; 0.228); Switchboard acts 0.276 (0.587; 0.639); NewsDiscourse roles 0.369
+  (0.241; 0.478); TRIPOD stages 0.425 (0.208; 0.231).
+- Conclusion: on section types the two readouts are level. Asking for the label reads story stages better than
+  the next-token emissions do, while both fall below always the most common state on acts and sentence roles.
+  These three label how finished text functions; the text barely depends on them (next-token evidence about a
+  third of that for topics and sections), so they do not test the method's hidden states (owner, 2026-11-26).
