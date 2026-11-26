@@ -37,11 +37,6 @@ def online_labels(p: np.ndarray, positions, seg_len: float) -> np.ndarray:
     return np.asarray(out)
 
 
-# How fast the readings themselves change, as a segment length in tokens: a property of the model and its
-# question, not of the text, fixed once on the seed-0 joined-document streams (docs/LOG.md, 2026-11-26).
-READING_RATE_LEN = 20.0
-
-
 def reading_evidence(p: np.ndarray, positions, seg_len: float, floor: float = 1e-6) -> np.ndarray:
     """Per-reading evidence implied by readings that are already running estimates of the state.
 
@@ -50,8 +45,9 @@ def reading_evidence(p: np.ndarray, positions, seg_len: float, floor: float = 1e
         estimate_t  ∝  evidence_t * (estimate_{t-1} @ A)
     so the evidence of the tokens since the previous reading is recovered as
         evidence_t  ∝  reading_t / (reading_{t-1} @ A)
-    with A the sticky transition between the two readings (uniform before the first reading). Decoding these
-    with A counts each piece of history once instead of once per reading."""
+    with A the sticky transition between the two readings (uniform before the first reading). This assumes the
+    readings behave like a forward filter with transition A, which has not been shown; the seg_len used for A
+    in experiments/joined_evidence.py was tuned against true labels. Not used by the tool (docs/LOG.md)."""
     positions = np.asarray(positions)
     gap = int(round(float(np.median(np.diff(positions))))) if len(positions) > 1 else 1
     A = sticky_transition(p.shape[1], seg_len, gap)

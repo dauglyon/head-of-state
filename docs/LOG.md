@@ -712,3 +712,13 @@ given in this repository's layout and reproduce from the same code.
 - Conclusion: false switches fall by 40–75% on every set and accuracy rises on four of five (AG News loses
   2.4 points); a few switches are placed further off. Adopted as the tool's settled labels (CLI); the demo
   settles at 0.894 token accuracy. README results updated.
+
+**2026-11-26 · Correction: recovered-evidence decoding withdrawn from the tool**
+- The previous entry's second transition table (switch probability 1/20 per token, used to turn readings
+  into evidence) was not estimated from anything: 20 was picked from 10 / 20 / 50 by accuracy against true
+  labels, and its description as "how fast the readings themselves change" was never measured. The forward
+  identity it relies on assumes the model's readings behave like an HMM filter with that table, which has not
+  been shown.
+- The tool's settled labels are back to Viterbi over the readings with the declared segment length (the
+  constant-hazard transition of HANDOFF question 2). README results restored. The held-out numbers in the
+  previous entry stand as an experiment, not as a method.

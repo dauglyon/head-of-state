@@ -20,10 +20,9 @@ closing          wrapping up and saying goodbye
 The text passes once through an open-weights language model and stays in its key/value cache. At each
 reading point it takes a Jev-style readout: a short multiple-choice question about the most recent text
 is appended, the probabilities the model's output head gives the answer options are the reading, and the
-question is then removed from the cache. An HMM-like decoder turns the readings into segments. A reading
-already reflects everything read so far, so the decoder first takes from each reading only what it adds to
-the one before; Viterbi decoding of that evidence then corrects the labels of the tokens before a switch, so
-the settled segments start where the new state began rather than where it was noticed. The default model is
+question is then removed from the cache. An HMM-like decoder turns the readings into segments: once a
+switch has been noticed, Viterbi decoding corrects the labels of the tokens before it, so the settled
+segments start where the new state began rather than where it was noticed. The default model is
 H2O-Lightning-4B, an open-weights Qwen3.5-4B fine-tuned to answer choice questions about a record; other
 open-weights causal language models work through `--model`.
 
@@ -42,12 +41,12 @@ not counted as error.
 
 | State list (documents) | Token accuracy | Always the most common state | Switches placed within 16 tokens | False switches per 1,000 tokens | Time to notice |
 |---|---|---|---|---|---|
-| News topics, 4 states (AG News articles) | 0.85 | 0.34 | 8 of 18 | 0.9 | 30 tokens |
-| Section types, 10 states (WikiSection disease article sections) | 0.71 | 0.30 | 5 of 11 | 1.3 | 92 tokens |
-| Sentiment, 2 states (IMDB reviews) | 0.84 | 0.67 | 5 of 15 | 1.5 | 55 tokens |
+| News topics, 4 states (AG News articles) | 0.87 | 0.34 | 10 of 18 | 2.4 | 30 tokens |
+| Section types, 10 states (WikiSection disease article sections) | 0.66 | 0.30 | 5 of 11 | 5.3 | 92 tokens |
+| Sentiment, 2 states (IMDB reviews) | 0.81 | 0.67 | 5 of 15 | 2.4 | 55 tokens |
 
 On natural documents, 30 held-out PubMed abstracts with 5 section states, token accuracy is 0.78 against
-0.41 for always the most common state. On streams that stay in one state the whole time, 2 false switches
+0.41 for always the most common state. On streams that stay in one state the whole time, 7 false switches
 per 1,000 tokens.
 
 Known limits:
@@ -57,8 +56,8 @@ Known limits:
 - **The earlier text holds the readings back.** In the streams used to choose the judging rule, the first
   8 tokens of a new news article, read alone, give its topic 0.76 probability; read after the previous
   article, 0.46. Reviews: 0.65 against 0.34.
-- **Related states are confused.** Disease-article section types are the weakest list (0.71): symptom
-  sections are often labelled prognosis.
+- **Related states are confused.** Disease-article section types are the weakest list (0.66): a third of
+  the tokens in symptom sections are labelled prognosis.
 - **Cost.** About 100 ms per token when reading every token (150 ms with 10 states). Reading every 8th
   token (`--stride 8 --persist 1`) is about 7 times cheaper; its labels are assigned to the 8 tokens before
   each reading.

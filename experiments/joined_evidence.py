@@ -22,12 +22,14 @@ sys.path.insert(0, str(HERE))
 import joined_documents as jd  # noqa: E402
 from common import RUNS  # noqa: E402
 
+TUNED_LEN = 20.0   # chosen from 10 / 20 / 50 by accuracy against true labels on the seed-0 streams
+
 
 
 def main():
     from head_of_state.decoders import probs
     from head_of_state.metrics import pool, stream_counts
-    from head_of_state.settle import READING_RATE_LEN, reading_evidence, settled_labels
+    from head_of_state.settle import reading_evidence, settled_labels
     sets = [(f"{n} (seed 2)", jd.out_file(n, 2), jd.DECLARED[n]) for n in jd.LISTS] + \
            [("PubMed abstracts 31-60 (held out)", RUNS / "heldout" / "S3.jsonl", 30.0),
             ("single-state streams (seed 1)", RUNS / "heldout" / "S2.jsonl", 190.5)]
@@ -42,7 +44,7 @@ def main():
             c = []
             for r in recs:
                 p, pos = probs(r, rotations=1)
-                q = p if how.startswith("readings") else reading_evidence(p, pos, READING_RATE_LEN)
+                q = p if how.startswith("readings") else reading_evidence(p, pos, TUNED_LEN)
                 c.append(stream_counts(settled_labels(q, pos, L), p, r["gold"], pos))
             m = pool(c, tokens)
             true = sum(x["true_b"] for x in c)

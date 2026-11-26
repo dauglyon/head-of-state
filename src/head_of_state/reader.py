@@ -605,11 +605,11 @@ def main():
         print(f"{span:>9} {word!r:>16}  {names[r.state]:<16} p={max(r.probs):.2f}{mark}")
     if gold:
         print("live:", score(reader.readings, gold))
-    # Settled labels: the best path over the evidence each reading adds to the one before (settle.py)
-    from .settle import READING_RATE_LEN, reading_evidence, settled_labels
+    # Settled labels: the best path over all readings (docs/TEST_SUITE.md, judging revised 2026-11-26)
+    from .settle import settled_labels
     rp = np.asarray([r.probs for r in reader.readings])
     rpos = [r.pos for r in reader.readings]
-    lab = settled_labels(reading_evidence(rp, rpos, READING_RATE_LEN), rpos, a.segment_length)
+    lab = settled_labels(rp, rpos, a.segment_length)
     print("settled segments:")
     start = 1
     for i in range(len(lab)):
