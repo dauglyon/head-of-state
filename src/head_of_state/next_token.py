@@ -14,7 +14,8 @@ that names a state stays in the cache: every branch is removed after its reading
 Two forms of the branch:
 - "instruction" (the owner's form): the stream sits in the user turn of the model's chat format, and the
   branch closes that turn with a question in the words a reader would be asked, "This part of the text is
-  about <description>. What word comes next?", and opens the answer with the prefill "Next word:", where the
+  <description>. What word comes next?" (a description carries its own phrasing: "about ...", "in English",
+  "a yes-or-no question"), and opens the answer with the prefill "Next word:", where the
   Jev-style question used to go. The answer slot's distribution is read at the actual next token (the next
   word's first token). A chat answer writes a word with or without its leading
   space, so the emission is the probability of the token plus that of its other spacing (when that is a
@@ -31,7 +32,7 @@ import torch
 from .reader import StreamStateReader
 
 STATEMENT = " [{name}: {description}]"
-INSTRUCTION = "\n\nThis part of the text is about {description}. What word comes next?"
+INSTRUCTION = "\n\nThis part of the text is {description}. What word comes next?"
 PREFILL = "Next word:"
 _SPLIT = "\u241eSTREAM\u241e"
 

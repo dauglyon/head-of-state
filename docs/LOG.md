@@ -788,3 +788,18 @@ given in this repository's layout and reproduce from the same code.
 - Conclusion: on one stream per list, the intended method beats the question readout on news topics and disease
   sections and fails on review sentiment, which barely changes the next word. Too few switches to establish a
   difference; the remaining tuning streams are next.
+
+**2026-11-26 · State-conditioned next-token emissions on all three tuning streams (news topics, disease sections)**
+- Command: `H2O_LIGHTNING_PATH=<checkout> uv run python -I experiments/stated_next_token.py run --model h2o
+  --form instruction --streams rest ag_news wikisection`, then `... report` → `results/stated_next_token.md`
+- Setup: as the previous entry, the other two seed-0 streams of each list; reviews left out (the owner: sentiment
+  is not a fair hidden-state test). The frame is now "This part of the text is {description}. What word comes
+  next?", with "about " in these descriptions, so the wording of these runs is unchanged.
+- Result, token accuracy of settled labels pooled over the three streams (Jev-style readout in brackets):
+  - News topics: 0.929 (0.865); per stream 0.916, 0.916, 0.955 (0.887, 0.835, 0.873); switches placed within 16
+    tokens 18 of 21 (15).
+  - Disease sections: 0.571 (0.683); per stream 0.785, 0.305, 0.596 (0.596, 0.816, 0.647). In the 0.305 stream
+    every symptom token is labelled mechanism, a prevention section splits between cause, prevention and
+    treatment, and half of a prognosis section is labelled mechanism.
+- Conclusion: better than the question readout on news topics on every stream; worse on disease sections, where
+  the first stream's gain did not hold. Related section types change the next word in overlapping ways.

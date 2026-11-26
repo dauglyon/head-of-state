@@ -1,9 +1,9 @@
 """State-conditioned next-token emissions on the joined-document streams (head_of_state.next_token).
 
-    H2O_LIGHTNING_PATH=<checkout> uv run python -I experiments/stated_next_token.py run [--model h2o|qwen] [--form instruction|bracket]
+    H2O_LIGHTNING_PATH=<checkout> uv run python -I experiments/stated_next_token.py run [--model h2o|qwen] [--form instruction|bracket] [--streams first|rest] [list ...]
     uv run python -I experiments/stated_next_token.py report           # results/stated_next_token.md
 
-Tuning streams (seed 0), the first stream of each state list, every token. Emission of token t:
+Tuning streams (seed 0): the first stream of each state list (--streams first) or the other two (rest); every token. Emission of token t:
 e_t(k) = P(x_t | x_<t, state k), the state given on a temporary branch at t-1 (head_of_state.next_token: the
 instruction form "This part of the text is about <description>. What word comes next?" with the answer slot read, or the
 bracket form for comparison).
@@ -37,31 +37,41 @@ MODELS = {"h2o": os.environ.get("H2O_LIGHTNING_PATH", "h2oai/h2o-lightning-4b"),
 FORMS = ("instruction", "bracket")
 
 
-def out_file(model, form="instruction"):
-    return jd.OUT / "stated" / (f"{model}_seed0_first.jsonl" if form == "bracket" else f"{model}_{form}_seed0_first.jsonl")
+PARTS = {"first": [0], "rest": [1, 2]}   # which seed-0 streams of each list
 
 
-def run(which, form):
+def out_file(model, form="instruction", part="first"):
+    stem = f"{model}_seed0_{part}" if form == "bracket" else f"{model}_{form}_seed0_{part}"
+    return jd.OUT / "stated" / f"{stem}.jsonl"
+
+
+def run(which, form, part, lists=None):
     import torch
     from transformers import AutoModelForCausalLM
     from head_of_state.harness import tokens_and_gold
     from head_of_state.next_token import StatedNextTokenReader
     tok = jd.tokenizer()
     model = AutoModelForCausalLM.from_pretrained(MODELS[which], dtype=torch.bfloat16, device_map="cuda")
-    f = out_file(which, form)
+    f = out_file(which, form, part)
     f.parent.mkdir(parents=True, exist_ok=True)
     with f.open("w") as out:
         for name, states in jd.LISTS.items():
-            reader = StatedNextTokenReader(model, tok, states, form=form)
-            s = jd.streams_for(name, tok, 0)[0]
-            ids, gold = tokens_and_gold(tok, s["text"], s["spans"])
-            torch.cuda.synchronize(); t0 = time.time()
-            lp, plain = reader.emissions(ids)
-            torch.cuda.synchronize()
-            out.write(json.dumps({"list": name, "id": s["id"], "n_tokens": len(ids), "gold": gold, "state_logp": lp,
-                                  "plain_logp": plain, "seconds": time.time() - t0}) + "\n")
-            out.flush()
-            print(f"{name}: {len(ids)} tokens, {1000 * (time.time() - t0) / len(ids):.0f} ms/token", flush=True)
+            if lists and name not in lists:
+                continue
+            # the frame is "This part of the text is {description}."; these descriptions were written for
+            # "...is about {description}", so "about " keeps the wording these runs used
+            reader = StatedNextTokenReader(model, tok, {k: "about " + v for k, v in states.items()}, form=form)
+            streams = jd.streams_for(name, tok, 0)
+            for i in PARTS[part]:
+                s = streams[i]
+                ids, gold = tokens_and_gold(tok, s["text"], s["spans"])
+                torch.cuda.synchronize(); t0 = time.time()
+                lp, plain = reader.emissions(ids)
+                torch.cuda.synchronize()
+                out.write(json.dumps({"list": name, "id": s["id"], "n_tokens": len(ids), "gold": gold, "state_logp": lp,
+                                      "plain_logp": plain, "seconds": time.time() - t0}) + "\n")
+                out.flush()
+                print(f"{s['id']}: {len(ids)} tokens, {1000 * (time.time() - t0) / len(ids):.0f} ms/token", flush=True)
 
 
 def logistic_slope(x, y, iters=50):
@@ -81,6 +91,38 @@ def lag1(v):
     return float((v[1:] * v[:-1]).sum() / max((v * v).sum(), 1e-12))
 
 
+def checks(r, names):
+    """The go / no-go checks for one record of K emissions per token."""
+    K = len(names)
+    lp = np.asarray(r["state_logp"]); plain = np.asarray(r["plain_logp"])
+    g = np.asarray(r["gold"][1:])                       # emission row t is for token t + 1
+    D, sds, ac, xs, ys = {}, [], [], [], []
+    for i in range(K):
+        m = g == i
+        if m.sum() < 20:
+            continue
+        for j in range(K):
+            if j != i:
+                d = lp[m, i] - lp[m, j]
+                D[(i, j)] = d.mean(); sds.append(d.std()); ac.append(lag1(d))
+                xs += [d, -d]; ys += [np.ones(len(d)), np.zeros(len(d))]
+    centred = lp - lp.mean(1, keepdims=True)
+    off = [centred[g != k, k].mean() for k in range(K) if (g != k).any()]
+    w = min(D, key=D.get)
+    return {"D": float(np.mean(list(D.values()))), "weakest": f"{names[w[0]]} vs {names[w[1]]}: {D[w]:.3f}",
+            "sd": float(np.mean(sds)), "lag1": float(np.mean(ac)),
+            "slope": logistic_slope(np.concatenate(xs), np.concatenate(ys)),
+            "offsets": f"{min(off):+.2f} to {max(off):+.2f}", "shared": float((lp.mean(1) - plain).mean())}
+
+
+def emission_probs(r, K):
+    """Emissions normalised over states per token, for the decoders (weight 1); the first token, which has no
+    emission, gets a flat row. Positions are 1-based token counts."""
+    lp = np.asarray(r["state_logp"])
+    e = np.exp(np.vstack([np.zeros((1, K)), lp - lp.max(1, keepdims=True)]))
+    return e / e.sum(1, keepdims=True), np.arange(1, r["n_tokens"] + 1)
+
+
 def report():
     from head_of_state.metrics import pool, stream_counts
     from head_of_state.settle import online_labels, settled_labels
@@ -91,37 +133,18 @@ def report():
           "lag-1 autocorr. | calibration slope b | state offsets, range | shared distortion | ms/token |\n"
           "|---|---|---|---|---|---|---|---|---|---|---|")
     decoded = []
-    for which, form in [(m, fm) for m in MODELS for fm in FORMS]:
-        f = out_file(which, form)
+    for which, form, part in [(m, fm, pt) for m in MODELS for fm in FORMS for pt in PARTS]:
+        f = out_file(which, form, part)
         if not f.exists():
             continue
         for r in map(json.loads, f.open()):
-            name, K = r["list"], len(jd.LISTS[r["list"]])
-            lp = np.asarray(r["state_logp"]); plain = np.asarray(r["plain_logp"])
-            g = np.asarray(r["gold"][1:])                       # emission row t is for token t + 1
-            D, sds, ac, xs, ys = {}, [], [], [], []
-            for i in range(K):
-                m = g == i
-                if m.sum() < 20:
-                    continue
-                for j in range(K):
-                    if j != i:
-                        d = lp[m, i] - lp[m, j]
-                        D[(i, j)] = d.mean(); sds.append(d.std()); ac.append(lag1(d))
-                        xs += [d, -d]; ys += [np.ones(len(d)), np.zeros(len(d))]
-            b = logistic_slope(np.concatenate(xs), np.concatenate(ys))
-            centred = lp - lp.mean(1, keepdims=True)
-            off = [centred[g != k, k].mean() for k in range(K) if (g != k).any()]
-            shared = (lp.mean(1) - plain).mean()
-            weakest = min(D, key=D.get)
+            name = r["list"]
             names = list(jd.LISTS[name])
-            print(f"| {which}, {form} | {name} | {r['n_tokens']} | {np.mean(list(D.values())):.3f} | {names[weakest[0]]} vs "
-                  f"{names[weakest[1]]}: {D[weakest]:.3f} | {np.mean(sds):.2f} | {np.mean(ac):.2f} | {b:.2f} | "
-                  f"{min(off):+.2f} to {max(off):+.2f} | {shared:+.2f} | {1000 * r['seconds'] / r['n_tokens']:.0f} |")
-            # decoding at weight 1: emission rows are tokens 2..T; token 1 gets a flat emission
-            e = np.exp(np.vstack([np.zeros((1, K)), lp - lp.max(1, keepdims=True)]))
-            p = e / e.sum(1, keepdims=True)
-            pos = np.arange(1, r["n_tokens"] + 1)
+            c = checks(r, names)
+            print(f"| {which}, {form} | {r['id']} | {r['n_tokens']} | {c['D']:.3f} | {c['weakest']} | {c['sd']:.2f} | "
+                  f"{c['lag1']:.2f} | {c['slope']:.2f} | {c['offsets']} | {c['shared']:+.2f} | "
+                  f"{1000 * r['seconds'] / r['n_tokens']:.0f} |")
+            p, pos = emission_probs(r, len(names))
             L = jd.DECLARED[name]
             sc = stream_counts(settled_labels(p, pos, L), p, r["gold"], pos)
             oc = stream_counts(online_labels(p, pos, L), p, r["gold"], pos)
@@ -129,7 +152,7 @@ def report():
             q, qpos = probs(jev, rotations=1)
             jsc = stream_counts(settled_labels(q, qpos, L), q, jev["gold"], qpos)
             joc = stream_counts(online_labels(q, qpos, L), q, jev["gold"], qpos)
-            decoded.append((f"{which}, {form}", name, r["n_tokens"], sc, oc, jsc, joc))
+            decoded.append((f"{which}, {form}", r["id"], r["n_tokens"], sc, oc, jsc, joc))
     print("\nDecoded, weight 1, declared length. Cells: token accuracy · switches placed within 16 tokens · false "
           "switches per 1,000 tokens · time to notice (tokens).\n")
     print("| Model, branch form | State list | state-conditioned next token | Jev-style readout, same stream |\n|---|---|---|---|")
@@ -142,6 +165,7 @@ def report():
 if __name__ == "__main__":
     a = sys.argv
     if a[1] == "run":
-        run(a[a.index("--model") + 1] if "--model" in a else "h2o", a[a.index("--form") + 1] if "--form" in a else "instruction")
+        run(a[a.index("--model") + 1] if "--model" in a else "h2o", a[a.index("--form") + 1] if "--form" in a else "instruction",
+            a[a.index("--streams") + 1] if "--streams" in a else "first", [x for x in a if x in jd.LISTS])
     else:
         report()
