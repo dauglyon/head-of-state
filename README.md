@@ -21,8 +21,11 @@ readings into regime labels. No weights change and nothing is fitted per problem
 | WikiSection en_disease validation (2 streams, 15 switches, 10 regimes) | token accuracy 0.56–0.58; no decoder setting kept spurious switches under 2 per 1,000 tokens |
 | Cost per token | 150 ms reading every token with 2 option orderings (default); 14–20 ms reading every 8th token with 1 ordering, which on the demo and PubMed sets matched the default's accuracy |
 
-Known limits: switches are detected late, because each reading sees the whole history; readouts built
-on next-token likelihood instead of a question have so far been weaker (see `docs/LOG.md`).
+Known limits: switches are detected late (raw readings turn about 16 tokens after a true switch on
+PubMed abstracts); showing the question only the last 30–120 tokens does not shorten this, so the lag
+is not caused by earlier history. Readouts built on next-token likelihood have been weaker throughout.
+A cheaper sensor, activation directions distilled from the asked readings, scored 0.82 token accuracy
+with an 8-token delay at 0.5 ms per token on 5 held-out PubMed abstracts (preliminary; see `docs/LOG.md`).
 
 ## Run the demo
 

@@ -63,10 +63,12 @@ placement.
 
 ## Known limits
 
-- **Detection lag.** Each reading sees the whole history, so it is already a smoothed belief and turns
-  late after a switch: on PubMed abstracts the raw readings flip about 16 tokens after the true switch,
-  and the persist rule commits about 23 tokens after it. Decoders cannot place a switch before the
-  readings turn; reducing the lag needs different readings.
+- **Detection lag.** On PubMed abstracts the raw readings flip about 16 tokens after the true switch,
+  and the persist rule commits about 23 tokens after it. Showing the question only the last 30–120
+  tokens does not shorten the lag, so it does not come from earlier history: a new section stays
+  ambiguous to the question until enough of it has arrived. Decoders cannot place a switch before
+  the readings turn; activation directions distilled from the asked readings turned about 8 tokens
+  after the switch in a small test.
 - **Many similar regimes.** With 10 disease-article section types, token accuracy is 0.56–0.58 and
   every decoder setting tried leaves more than 2 spurious switches per 1,000 tokens.
 - **Sample sizes.** All results so far come from 2 to 12 streams and 15 to 36 switches per set;
@@ -87,3 +89,8 @@ Details and numbers are in `docs/LOG.md`; code in `src/head_of_state/readouts.py
 - **Embedding similarity** (bge-m3, window vs regime description): 1–6 ms per token, accuracy 0.55
   (PubMed) and 0.26 (WikiSection).
 - **Content-free calibration** of the question readout: lowered accuracy by 4 to 17 points.
+- **Windowed asking** (the question sees only the last W tokens): no shorter lag, lower accuracy.
+- **Activation directions** (residual stream at layer 24 of 32, difference of class means, read from
+  the stream's own pass at 0.5 ms per token): from model-written passages, 0.74 token accuracy with a
+  long delay; distilled from asked readings on other streams, 0.82 accuracy with an 8-token delay
+  (5 held-out abstracts). The distilled directions are fitted per regime set, without gold labels.

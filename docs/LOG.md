@@ -189,3 +189,94 @@ given in this repository's layout and reproduce from the same code.
     delay, 7.1 spurious per 1k. Every token, persist 3: 0.779, 22.5, 7.7.
 - Conclusion: `persist` counts readings, so it has to shrink with the stride. Every 8th token with
   persist 1 matches every token with persist 3 at about a seventh of the cost.
+
+**2026-11-25 · Evidence mechanism, Path 1b: double counting (offline)**
+- Command: `uv run python -I experiments/evidence_table.py` → `results/evidence_table.md`
+- Data: the saved asked readings (PubMed dev, 10 abstracts, 1 and 2 option orderings, every token);
+  WikiSection validation (2 streams, regimes recur).
+- New scorer: `src/head_of_state/metrics.py`. It adds boundary F1 within ±8 and ±16 tokens, and Brier
+  score and ECE on the probabilities each decoder reports.
+- Result, PubMed, 1 ordering:
+  - Raw argmax: accuracy 0.794, ECE 0.037, 41 spurious per 1k.
+  - Forward filter: accuracy 0.774, ECE 0.205, 3.5 spurious per 1k. Tempering (η = 0.5, 0.25) leaves
+    ECE at 0.20 and lowers accuracy.
+  - Dividing by the mean prediction over unlabelled positions: 0.758, ECE 0.22.
+  - Dividing by a running prior: accuracy 0.834 and delay 13.2 tokens (filter: 25.9), but 12.5
+    spurious per 1k.
+- Result, WikiSection: the running prior gives accuracy 0.563 (raw 0.564), delay 12.0 tokens (filter:
+  17.3) and 17 spurious per 1k.
+- Conclusion: filtering the asked probabilities makes them overconfident (ECE about 0.04 → 0.20),
+  which is the double-counting signature; tempering does not repair it. The running prior trades lower
+  delay for more spurious switches, and its accuracy gain holds only on PubMed.
+
+**2026-11-25 · Evidence mechanism, Path 2a: how concentrated the likelihood evidence is (offline)**
+- Command: `uv run python -I experiments/likelihood_concentration.py` → `results/likelihood_concentration.md`
+- Result:
+  - Description only at the start: the top 10% of tokens carry 74% (PubMed) and 69% (WikiSection) of
+    the positive log-likelihood ratio, and the mean ratio is about 0.
+  - With the declared hopped window: 48% and 61%, and the mean ratio is positive.
+  - On PubMed the evidence sits on number and statistics tokens (`0`, `=`, `P`, `%`, `vs`, `placebo`).
+- Conclusion: the evidence decays within about 32 tokens and sits on a few content tokens. That meets
+  the brief's stop condition, so Path 2 is closed as no-go and the reset-on-switch variant is not run.
+
+**2026-11-25 · Supervised ceiling, checked**
+- Source: Dernoncourt & Lee 2017, Table 3 (https://ar5iv.labs.arxiv.org/html/1710.06071).
+- Result: bi-ANN (bi-LSTM token and sentence layers with a CRF) scores F1 90.0 on the PubMed 20k RCT
+  test set. The paper does not state the averaging. It is a sentence-level score on the test split,
+  so it is not directly comparable with token accuracy on dev.
+
+**2026-11-25 · Evidence mechanism, Paths 1a and 1c: asking with the question seeing only the last W tokens**
+- Commands: `uv run python -I experiments/windowed_asking.py run`, then `... report` →
+  `results/windowed_asking.md`
+- Setup: windows declared before the runs as fractions of the declared segment length: PubMed
+  1×, 2× and 4× (30 / 60 / 120 tokens); S1 0.25×, 0.5× and 1× (48 / 95 / 190 tokens). 1 option
+  ordering, a reading every 2nd token, one batched pass per reading over opening + window + question
+  (79–171 ms per reading).
+- Result, PubMed (10 abstracts), delay of the raw readings:
+  - full history: 16.4 tokens
+  - last 30 tokens: 17.9
+  - last 60 tokens: 15.2
+  - last 120 tokens: 21.9
+
+  Accuracy 0.756 / 0.796 / 0.761 against 0.795 with full history.
+- Result, S1 (12 streams), forward filter:
+  - delay 18.8 / 22.5 / 20.0 tokens against 23.7 with full history
+  - accuracy 0.767 / 0.826 / 0.857 against 0.879
+  - only the 800-token history condition gets shorter (about 37 against 54 tokens)
+- Conclusion: restricting the question to recent tokens does not remove the lag, so earlier history is
+  not its cause. A new section stays ambiguous to the question until enough of it has arrived. Small
+  windows also cost accuracy on S1.
+
+**2026-11-25 · Evidence mechanism, Path 3: activation directions and the asking cascade**
+- Commands: `uv run python -I experiments/activation_directions.py run`, then `... report` →
+  `results/activation_directions.md`; the consolidated table is `results/evidence_table.md`.
+- Setup:
+  - Residual-stream activations at layers 16 / 20 / 24 / 28 of 32, from one pass over each abstract
+    (0.51 ms per token).
+  - 3a: 20 passages per regime written by the model from the regime's name and description only.
+  - 3b: directions fitted on abstracts 1–5 labelled by asking (full history, running-prior filter);
+    no gold labels.
+  - 3c: logistic probe on gold labels of abstracts 1–5.
+  - 3b and 3c are scored on abstracts 6–10 (18 switches). The layer, 24, was chosen with 3a on all
+    10 dev abstracts.
+- Result on abstracts 6–10, forward filter:
+
+  | Mechanism | accuracy | delay (tokens) | spurious per 1k | ECE |
+  |---|---|---|---|---|
+  | asking | 0.760 | 27.3 | 2.1 | 0.22 |
+  | 3a (model-written passages) | 0.743 | 57.7 | 18.3 | 0.17 |
+  | 3b (distilled from asking) | 0.821 | 7.9 | 19.1 | 0.10 |
+  | 3c (gold-label probe) | 0.847 | 24.6 | 28.7 | 0.12 |
+  | bge-m3 similarity | 0.599 | — | — | — |
+
+  3a misses 8 of 18 switches.
+- Result, 3d cascade (the cheap reading everywhere, the asked reading wherever the filter's entropy
+  is above a threshold):
+  - With 3a, asking at 9% of tokens gives 0.810 accuracy, 19.6-token delay and 2.9 spurious per 1k,
+    at an estimated 9 ms per token. That is better than either part alone.
+  - With 3b, asking more never helps: 3b alone is already ahead of asking.
+- Conclusion: directions distilled from asking are the most promising per-token sensor so far. They
+  are 200 times cheaper than asking and switch 3.5 times sooner, but have more spurious switches.
+  The sample is small (5 held-out abstracts), the directions are fitted per regime set without gold
+  labels (a departure from the original brief), and they have not yet been tested where regimes
+  recur or on S1.
