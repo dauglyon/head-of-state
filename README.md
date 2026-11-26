@@ -5,13 +5,13 @@
 Zero-shot regime tracking from an open-weights LLM's output head.
 Hidden-state inference from plain-English descriptions.
 
-Head of State labels every position of a token stream with one of several regimes, or hidden states (the
-two words mean the same thing here), each described in one line of plain English at run time, and marks
-where the state switches. The stream sits in an open-weights causal language model's key/value cache; at
-each reading point a short multiple-choice question is appended, the model's existing output head gives a
-probability for each state, and the question is removed from the cache again. An HMM-like decoder
-(persist rule, sticky forward filter or fixed-lag Viterbi) turns the readings into state labels. No
-weights change and nothing is fitted per problem.
+Head of State labels every position of a token stream with one of several hidden states (regimes), each
+described in one line of plain English at run time, and marks where the state switches. The stream sits
+in an open-weights causal language model's key/value cache; at each reading point a short multiple-choice
+question is appended, the model's existing output head gives a probability for each state, and the
+question is removed from the cache again. An HMM-like decoder (persist rule, sticky forward filter or
+fixed-lag Viterbi) turns the readings into state labels. No weights change and nothing is fitted per
+problem.
 
 **Status: early prototype.** All numbers are preliminary, from small samples, with Qwen3.5-4B on one 12 GB GPU.
 

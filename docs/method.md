@@ -1,10 +1,10 @@
 # Method and decoder notes
 
-Terms: a *regime*, or *hidden state*, is one of the states described at run time (name plus one-line
-description); the notes below say *hidden state* or *state*. A *switch* is a change from one state to
-another; the *head* is the model's existing output layer. The method is HMM-like: per-token state
-scores are combined with a sticky transition model, but the scores are read from a frozen language
-model rather than learned emission tables.
+Terms: a *hidden state* (*regime*) is one of the states described at run time (name plus one-line
+description); a *switch* is a change from one hidden state to another; the *head* is the model's
+existing output layer. The method is HMM-like: per-token state scores are combined with a sticky
+transition model, but the scores are read from a frozen language model rather than learned emission
+tables.
 
 ## Reading the hidden state from the head
 
