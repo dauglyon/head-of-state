@@ -213,4 +213,38 @@ rs10 = [Reading(4 * (i + 1), [], s, s, i > 0 and s != [0, 1, 1][i - 1]) for i, s
 m10 = score(rs10, [0] * 5 + [1] * 7)
 assert m10["switches_found"] == 1 and m10["mean_delay_tokens"] == 2.0, m10
 print("10  ok  delay counted from the switch token (switch at token 6, committed at token 8: 2 tokens)")
+
+# 11: refine. Every probe and every regular reading equals an every-token reader's reading at the same
+#     position (both see the full history), the regular readings equal those of the same reader without
+#     refine (the main cache is untouched), and probes happen only where two readings disagree.
+for label, mdl in (("gpt2", model), ("hybrid", qmodel)):
+    every = {r.pos: r.probs for r in StreamStateReader(mdl, tok, DEMO_STATES, rotations=1, max_ctx=4096).push_tokens(ids)}
+    plain = StreamStateReader(mdl, tok, DEMO_STATES, rotations=1, stride=8, max_ctx=4096)
+    plain_out = plain.push_tokens(ids) + plain.finish()
+    ref = StreamStateReader(mdl, tok, DEMO_STATES, rotations=1, stride=8, refine=True, max_ctx=4096)
+    out = ref.push_tokens(ids) + ref.finish()
+    d = max(abs(a - b) for r in out for a, b in zip(r.probs, every[r.pos]))
+    assert d < 1e-4, f"{label}: refined readings differ from every-token readings by {d}"
+    regular = {r.pos: r.probs for r in out if r.pos % 8 == 0 or r.pos == len(ids)}
+    d2 = max(abs(a - b) for r in plain_out for a, b in zip(r.probs, regular[r.pos]))
+    assert d2 < 1e-5, f"{label}: refine changed the regular readings by {d2}"
+    assert [r.start for r in out][1:] == [r.pos + 1 for r in out][:-1]       # contiguous spans
+    n_probe = len(out) - len(plain_out)
+    n_change = sum(1 for a, b in zip(plain_out, plain_out[1:]) if a.raw != b.raw)
+    assert n_change == 0 or n_probe > 0
+    print(f"11  ok  {label}: {n_probe} probes at {n_change} disagreements; probes match every-token readings ({d:.1e})")
+# 11b: the tiny hybrid model gives one answer everywhere, so force a disagreement before every reading
+#      (mark the previous reading as a different state): every reading then bisects, exercising the
+#      Gated DeltaNet snapshot and restore; probes must still equal every-token readings.
+every = {r.pos: r.probs for r in StreamStateReader(qmodel, tok, DEMO_STATES, rotations=1, max_ctx=4096).push_tokens(ids)}
+forced = StreamStateReader(qmodel, tok, DEMO_STATES, rotations=1, stride=8, refine=True, max_ctx=4096)
+out = []
+for i in range(0, len(ids), 8):
+    if forced.readings:
+        forced.readings[-1].raw = (forced.readings[-1].raw + 1) % forced.K
+    out += forced.push_tokens(ids[i: i + 8])
+n_probe = sum(1 for r in out if r.pos % 8)
+d = max(abs(a - b) for r in out for a, b in zip(r.probs, every[r.pos]))
+assert n_probe >= 3 * (len(ids) // 8 - 1) and d < 1e-4, (n_probe, d)
+print(f"11b ok  hybrid with forced disagreements: {n_probe} probes, all equal every-token readings ({d:.1e})")
 print("all mechanics tests passed")

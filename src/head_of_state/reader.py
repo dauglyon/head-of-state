@@ -55,6 +55,7 @@ class Reading:
     switched: bool              # True if the committed state changed at this reading
     start: int | None = None    # first token position this reading labels (None: only `pos`); with
                                 # stride N a reading labels the tokens since the previous reading
+    detail: list | None = None  # per-ordering letter log-probabilities, when the reader keeps them
 
 
 @dataclass
@@ -68,6 +69,7 @@ class StreamStateReader:
     prior_power: float = 0.0            # 0 = off; 0.75 divides out a running label prior
     max_ctx: int = 8192                 # re-anchor when the cache passes this many tokens
     keep_ctx: int = 2048                # stream tokens kept when re-anchoring
+    refine: bool = False                # with stride > 1: bisect between two disagreeing readings
     readings: list[Reading] = field(default_factory=list)
 
     # ------------------------------------------------------------------ setup
@@ -292,23 +294,82 @@ class StreamStateReader:
             self.stream.append(t)
             self._pending.append(t)
             if len(self.stream) % self.stride == 0:
-                new.append(self._reading())
+                new += self._reading()
         return new
 
     def finish(self) -> list[Reading]:
         """End of stream: take one more reading if tokens arrived after the last one, so that every
         token is labelled."""
-        return [self._reading()] if len(self.stream) > self._last_read else []
+        return self._reading() if len(self.stream) > self._last_read else []
 
-    def _reading(self) -> Reading:
+    def _reading(self) -> list[Reading]:
+        """One reading at the current position; with `refine`, plus the bisection probes placed between
+        the previous reading and this one when the two disagree on the likeliest state."""
+        prev = self.readings[-1] if self.readings else None
+        pending = list(self._pending)
+        snap = self._take() if self.refine and prev is not None and len(pending) > 1 else None
+        base_n = self.n_cached
         self.flush()
         p = self._read()
-        raw = int(p.argmax())
-        state, sw = self._commit(raw)
-        r = Reading(len(self.stream), p.tolist(), raw, state, sw, start=self._last_read + 1)
+        detail = getattr(self, "last_shift_logp", None)
+        probes = []
+        if snap is not None and self.n_cached == base_n + len(pending) and int(p.argmax()) != prev.raw:
+            probes = self._bisect(snap, base_n, pending, int(p.argmax()))
+        out = []
+        for offset, pp, dd in probes + [(len(pending), p, detail)]:
+            raw = int(pp.argmax())
+            state, sw = self._commit(raw)
+            pos = self._last_read + offset
+            r = Reading(pos, pp.tolist(), raw, state, sw, start=(out[-1].pos if out else self._last_read) + 1, detail=dd)
+            out.append(r)
         self._last_read = len(self.stream)
-        self.readings.append(r)
-        return r
+        self.readings += out
+        return out
+
+    def _bisect(self, snap, base_n, pending, new_raw):
+        """Readings inside (previous reading, current position) by bisection: each probe rebuilds the
+        cache from the snapshot taken at the previous reading plus the tokens up to the probe, so the
+        main cache is untouched. Returns (offset, probabilities, detail) sorted by offset; the first
+        offset whose reading shows `new_raw` is the placed switch."""
+        if self.prior_power > 0:
+            raise NotImplementedError("refine does not support prior_power > 0")
+        main, main_n = self._take(), self.n_cached
+        lo, hi, probes = 0, len(pending), []
+        while hi - lo > 1:
+            mid = (lo + hi) // 2
+            self._put(snap)
+            self.n_cached = base_n
+            self._feed(pending[:mid])
+            pm = self._read()
+            probes.append((mid, pm, getattr(self, "last_shift_logp", None)))
+            if int(pm.argmax()) == new_raw:
+                hi = mid
+            else:
+                lo = mid
+        self._put(main)
+        self.n_cached = main_n
+        return sorted(probes, key=lambda x: x[0])
+
+    def _take(self):
+        """The cache's per-layer attributes; linear-attention states cloned (the model updates them in
+        place), key/value tensors referenced (the model replaces them rather than writing into them)."""
+        snaps = []
+        for layer in self.cache.layers:
+            d = {k: (dict(v) if isinstance(v, dict) else v) for k, v in vars(layer).items()}
+            if hasattr(layer, "recurrent_states"):
+                for name in ("conv_states", "recurrent_states"):
+                    d[name] = {i: (None if t is None else t.clone()) for i, t in getattr(layer, name).items()}
+            snaps.append(d)
+        return snaps
+
+    def _put(self, snaps):
+        """Install a snapshot from _take; its linear-attention states are cloned again so it can be reused."""
+        for layer, d in zip(self.cache.layers, snaps):
+            vars(layer).clear()
+            vars(layer).update({k: (dict(v) if isinstance(v, dict) else v) for k, v in d.items()})
+            if hasattr(layer, "recurrent_states"):
+                for name in ("conv_states", "recurrent_states"):
+                    setattr(layer, name, {i: (None if t is None else t.clone()) for i, t in d[name].items()})
 
     @staticmethod
     def token_states(readings: list[Reading]) -> list[int]:
@@ -465,6 +526,9 @@ def main():
                          "cost per token falls about N-fold. 4 to 8 kept accuracy in tests (docs/LOG.md)")
     ap.add_argument("--rotations", type=int, default=2,
                     help="option orderings averaged per reading (default 2); 1 matched 2 in tests")
+    ap.add_argument("--refine", action="store_true",
+                    help="with --stride N: where two readings disagree, bisect between them (about log2 N extra\n"
+                         "readings per change) so a switch is placed at a single token")
     ap.add_argument("--persist", type=int, default=3,
                     help="readings a new regime must lead before it is committed (default 3). Counts\n"
                          "readings, not tokens: with --stride 8 use --persist 1")
@@ -498,10 +562,10 @@ def main():
         states = json.load(open(a.states))
     if h2o:
         from .h2o import H2OReader
-        reader = H2OReader(model, tok, states, stride=a.stride, rotations=a.rotations,
+        reader = H2OReader(model, tok, states, stride=a.stride, rotations=a.rotations, refine=a.refine,
                            persist=a.persist, prior_power=a.prior_power)
     else:
-        reader = StreamStateReader(model, tok, states, stride=a.stride, rotations=a.rotations,
+        reader = StreamStateReader(model, tok, states, stride=a.stride, rotations=a.rotations, refine=a.refine,
                                    persist=a.persist, prior_power=a.prior_power)
     names = list(states)
     if a.text:

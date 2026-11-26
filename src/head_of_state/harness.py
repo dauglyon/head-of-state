@@ -75,14 +75,15 @@ def run_stream(reader: UnitReader, stream: dict, tok) -> dict:
     if torch.cuda.is_available():
         torch.cuda.synchronize()
     t0 = time.time()
-    rows = []
+    rows, positions = [], []
     for t in ids:
-        if reader.push_tokens([t]):
-            rows.append(reader.last_shift_logp)
+        for r in reader.push_tokens([t]):
+            rows.append(r.detail)
+            positions.append(r.pos)
     if torch.cuda.is_available():
         torch.cuda.synchronize()
     return {"id": stream["id"], "n_tokens": len(ids), "gold": gold, "shifts": reader.shifts,
-            "content_free": content_free,
+            "content_free": content_free, "positions": positions,
             "shift_logp": rows, "seconds": time.time() - t0, "stride": reader.stride}
 
 

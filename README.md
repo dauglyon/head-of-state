@@ -35,15 +35,19 @@ settings fixed beforehand; the others are tuning or exploration runs. Every run 
 
 | Data (sample) | Result |
 |---|---|
-| PubMed 20k RCT abstracts, test (30 abstracts, 98 switches, 5 states), frozen settings: every 8th token | token accuracy 0.70; 83 of 98 switches found, 31 tokens late on average; 8.2 spurious switches per 1,000 tokens; 14 ms per token |
+| PubMed 20k RCT abstracts, test (30 abstracts, 98 switches, 5 states), frozen settings: every 8th token | token accuracy 0.71; 83 of 98 switches found, 31 tokens late on average; 8.2 spurious switches per 1,000 tokens; 14 ms per token |
 | Same PubMed test abstracts, read through H2O-Lightning-4B (a decision-tuned Qwen3.5-4B) | token accuracy 0.76; 85 of 98 switches found, 23 tokens late on average; 7.2 spurious switches per 1,000 tokens; 13 ms per token |
-| Doctor–patient conversations, ACI-Bench test (10 encounters, 11,921 tokens, 2 speaker states), H2O-Lightning-4B | token accuracy 0.86; turn changes caught about 6 tokens after they happen, mostly the wait for the next reading, but about half are missed because many turns (median 12 tokens) end before the next reading; 2.6–4.8 spurious switches per 1,000 tokens |
+| Doctor–patient conversations, ACI-Bench test (10 encounters, 11,921 tokens, 2 speaker states), H2O-Lightning-4B | token accuracy 0.84; turn changes caught about 6 tokens after they happen, mostly the wait for the next reading, but about half are missed because many turns (median 12 tokens) end before the next reading; 2.6–4.8 spurious switches per 1,000 tokens |
 | Single-state streams, WikiSection disease articles, test (4 streams, 15,039 tokens) | 5.3 false switches per 1,000 tokens with the forward filter; the true state held for 48–95% of tokens, depending on the state |
 | Support-call demo (245 tokens, 4 switches), either model | token accuracy 0.84; 4 of 4 switches found, 10 tokens late on average; no spurious switches |
 | PubMed 20k RCT abstracts, dev, tuning data (10 abstracts, 36 switches, 5 states) | token accuracy 0.79–0.80; switches committed about 23 tokens late (a median sentence is 30 tokens); 5.8 spurious switches per 1,000 tokens, 1–2 with fixed-lag Viterbi |
 | WikiSection disease articles, test (12 streams, one switch each, 10 states offered) | token accuracy 0.88 around the switch; switches about 24 tokens late, not growing over 50 to 3,000 tokens of earlier text |
 | WikiSection disease articles, validation (2 streams, 15 switches, 10 states) | token accuracy 0.56–0.58; more than 2 spurious switches per 1,000 tokens with every decoder tried |
 | Cost per token | 150 ms reading every token; 14–20 ms reading every 8th token, which matched the every-token accuracy on the demo and PubMed dev |
+
+`--refine` adds bisection readings between two disagreeing readings. On speaker turns it cut the delay from 6.4
+to 3.6 tokens and raised boundary F1 within 2 tokens from 0.24 to 0.39 at 18 instead of 13 ms per token; on PubMed
+sections it did not help, because there the readings themselves turn late.
 
 Known limits: switches are detected late. On PubMed abstracts the readings turn about 16 tokens after
 the true switch, and showing the question only the last 30–120 tokens does not shorten this. Many similar

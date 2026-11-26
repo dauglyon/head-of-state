@@ -48,22 +48,33 @@ def boundary_matches(pred: list[int], true: list[int], k: int) -> int:
 
 
 def stream_counts(labels, probs: np.ndarray, gold_all: list[int], positions, ks=(8, 16), bins=10) -> dict:
-    """Per-stream sums for pooling. gold_all is the gold regime of every token (1-based positions)."""
-    pos = list(positions)
+    """Per-stream sums for pooling. gold_all is the gold state of every token (1-based positions).
+
+    Each reading labels the tokens since the previous reading, so accuracy, boundaries, Brier and ECE
+    are computed per token after expanding the readings over the tokens they label (a predicted
+    boundary is the first token of the span whose label differs). Switch matching, delay and spurious
+    switches stay on the readings: delay is the time at which the decoder first shows the new state.
+    """
+    pos = [int(x) for x in positions]
+    lab = [int(x) for x in labels]
+    probs = np.asarray(probs)
+    span = np.diff([0] + pos)                                  # tokens labelled by each reading
+    tok_lab = np.repeat(lab, span)
+    tok_p = np.repeat(probs, span, axis=0)
+    g_tok = np.asarray(gold_all[: pos[-1]])
+    pb = [i for i in range(1, len(tok_lab)) if tok_lab[i] != tok_lab[i - 1]]
+    tb = [i for i in range(1, len(g_tok)) if g_tok[i] != g_tok[i - 1]]
     g = [gold_all[x - 1] for x in pos]
-    lab = list(labels)
-    pb = [pos[i] for i in range(1, len(lab)) if lab[i] != lab[i - 1]]
-    tb = [pos[i] for i in range(1, len(g)) if g[i] != g[i - 1]]
     rs = [Reading(x, [], s, s, i > 0 and s != lab[i - 1]) for i, (x, s) in enumerate(zip(pos, lab))]
     m = score(rs, gold_all)
-    onehot = np.eye(probs.shape[1])[g]
-    conf, hit = probs.max(1), (probs.argmax(1) == np.asarray(g))
+    onehot = np.eye(probs.shape[1])[g_tok]
+    conf, hit = tok_p.max(1), (tok_p.argmax(1) == g_tok)
     which = np.minimum((conf * bins).astype(int), bins - 1)
-    return {"n": len(g), "ok": sum(a == b for a, b in zip(lab, g)), "pred_b": len(pb), "true_b": len(tb),
+    return {"n": len(g_tok), "ok": int((tok_lab == g_tok).sum()), "pred_b": len(pb), "true_b": len(tb),
             "match": {k: boundary_matches(pb, tb, k) for k in ks},
             "found": m["switches_found"], "true_sw": m["true_switches"], "spurious": m["spurious_switches"],
             "delay_sum": (m["mean_delay_tokens"] or 0) * m["switches_found"],
-            "brier": float(((probs - onehot) ** 2).sum(1).sum()),
+            "brier": float(((tok_p - onehot) ** 2).sum(1).sum()),
             "bin_n": np.bincount(which, minlength=bins), "bin_conf": np.bincount(which, conf, bins),
             "bin_hit": np.bincount(which, hit.astype(float), bins)}
 

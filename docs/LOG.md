@@ -411,3 +411,33 @@ given in this repository's layout and reproduce from the same code.
     `results/likelihood_vs_question.md`).
   - Stride sweep: see `results/stride_sweep.md`.
 - Accuracy, switch counts and spurious rates are unchanged. Runs that read every token are unchanged.
+
+**2026-11-25 · Bisection between disagreeing readings; per-token scoring; Viterbi on the scored sets**
+- Change 1, `--refine` (`StreamStateReader.refine`): with a reading every N tokens, where two
+  consecutive readings disagree on the likeliest state, the reader bisects the gap (+4, then ±2, then
+  ±1 tokens for N = 8). Each probe rebuilds the cache from a snapshot taken at the previous reading, so
+  the main cache is untouched. Tested in `tests/test_reader.py` (cases 11 and 11b): probes equal the
+  readings of an every-token reader, and regular readings are unchanged.
+- Change 2, scoring: `metrics.stream_counts` averaged accuracy, Brier and ECE over readings and placed
+  a predicted boundary at the reading. It now expands each reading over the tokens it labels and scores
+  per token, with a boundary at the first token of the span whose label changes. Runs that read every
+  token are unchanged. With a fixed interval the change is small (PubMed test, base model 0.701 →
+  0.712; H2O-Lightning 0.757 → 0.763; ACI-Bench 0.855 → 0.842). With bisection it is large, because
+  probes concentrate at ambiguous boundaries. All tables using these metrics were regenerated.
+- Commands: `H2O_LIGHTNING_PATH=<checkout> uv run python -I experiments/refine_runs.py run`, then
+  `... report` → `results/refine_runs.md`
+- Result, H2O-Lightning, frozen settings, persist 1 (every 8th token → plus bisection):
+
+  | Set | token accuracy | boundary F1 ±2 | delay (tokens) | spurious per 1k | ms per token |
+  |---|---|---|---|---|---|
+  | ACI-Bench | 0.842 → 0.855 | 0.24 → 0.39 | 6.4 → 3.6 | 2.6 → 1.7 | 13 → 18 |
+  | PubMed test | 0.763 → 0.755 | 0.22 → 0.20 | 22.8 → 20.1 | 7.2 → 8.5 | 13 → 18 |
+
+- Result, Viterbi on the same readings:
+  - Offline Viterbi on PubMed: boundary F1 ±16 0.52 → 0.61, spurious per 1k 7.2 → 2.1.
+  - On ACI-Bench it adds spurious switches (17–49 per 1k). With 12-token turns and a reading every
+    8 tokens, the declared length is 1.5 readings, so the transition model is no longer sticky.
+- Conclusion: bisection resolves switches below the reading interval where the change is sharp
+  (speaker turns), at about 40% more cost. It cannot place a switch before the readings turn, so it
+  does not help where they drift (PubMed sections). Viterbi suits sets whose segments span several
+  readings.
