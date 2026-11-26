@@ -304,3 +304,22 @@ given in this repository's layout and reproduce from the same code.
   and react sooner, but they generalise poorly, and with 10 similar states they fail. Asking stays the
   per-token sensor. Directions are worth keeping only as a supplement fused with sparse asking, and
   only on state sets where they carry signal (here PubMed).
+
+**2026-11-25 · First scored runs with frozen settings (PubMed test, null streams)**
+- Frozen settings, recorded in `docs/TEST_SUITE.md` before the runs: 1 option ordering, a reading
+  every 8th token, persist 1, prior-power 0, max_ctx 8192, keep_ctx 2048, forward filter η = 1
+  (persist 1 reported alongside).
+- Commands: `uv run python -I experiments/scored_runs.py run`, then `... report` →
+  `results/scored_runs.md`
+- Result, S3 (30 PubMed 20k RCT test abstracts, 98 switches, 13.7 ms per token):
+  - persist 1: token accuracy 0.701, 83/98 switches, mean delay 26.8 tokens, 8.2 spurious per 1k
+  - forward filter: 0.647, 77/98, 39.0 tokens, 3.0 spurious per 1k
+  - The same setting scored 0.795 on 10 dev abstracts.
+- Result, S2 (4 single-state WikiSection test streams, 15,039 tokens, 21.1 ms per token): false
+  switches per 1k, 24.5 with persist 1 and 5.3 with the filter. Share of tokens on the true state:
+  - treatment 95%, diagnosis 88%
+  - symptom 48%, often read as epidemiology or mechanism
+  - cause 49%, often read as mechanism or epidemiology
+- Conclusion: on held-out data the cheap frozen setting scores about 0.70, well below the 0.80 seen on
+  the small dev sample. Some states are rarely mistaken and others are often confused with related
+  states, so the descriptions of those states are the next lever.

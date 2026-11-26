@@ -40,6 +40,8 @@ Lengths marked "measure" are taken from the named non-evaluated split before the
 | S11 | measure: median narration/quote span, one held-out novel | "the last sentence" |
 | S12 | measure: median human-prefix length, SemEval 8C train | "the last few sentences" |
 
+Frozen settings (H3), fixed 2026-11-25 before the first scored runs, from the PubMed dev and WikiSection validation runs in docs/LOG.md: 1 option ordering, a reading every 8th token, persist 1, prior-power 0, max_ctx 8192, keep_ctx 2048, forward filter with eta = 1 (persist 1 reported alongside). Question frame unchanged.
+
 Windowed likelihood emissions (HANDOFF Q3 extended, added 2026-11-25): W = 0.0625 x declared segment length (S3: 2 tokens, S1: 12 tokens), hop W/2, sticky forward filter with eta = 1 and switch probability 1/L. Chosen before scored runs by mean committed accuracy over the tuning sets (first 10 PubMed 20k RCT dev abstracts; 2 WikiSection en_disease validation streams), from 0.0625 / 0.125 / 0.25 / 0.5 / 1 / 2 x and no window (`eval/exp_window.py`). The same W applies to the windowed question method (experiment E).
 
 ## Sets

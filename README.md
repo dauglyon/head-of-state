@@ -30,15 +30,18 @@ one are welcome in the issue tracker.
 
 ## Results so far
 
-Preliminary, from small samples, with Qwen3.5-4B on one 12 GB GPU. Every run is in `docs/LOG.md`.
+Preliminary, from small samples, with Qwen3.5-4B on one 12 GB GPU. The first two rows are scored runs with
+settings fixed beforehand; the others are tuning or exploration runs. Every run is in `docs/LOG.md`.
 
 | Data (sample) | Result |
 |---|---|
+| PubMed 20k RCT abstracts, test (30 abstracts, 98 switches, 5 states), frozen settings: every 8th token | token accuracy 0.70; 83 of 98 switches found, 27 tokens late on average; 8.2 spurious switches per 1,000 tokens; 14 ms per token |
+| Single-state streams, WikiSection disease articles, test (4 streams, 15,039 tokens) | 5.3 false switches per 1,000 tokens with the forward filter; the true state held for 48–95% of tokens, depending on the state |
 | Support-call demo (245 tokens, 4 switches) | token accuracy 0.84; 4 of 4 switches found, 10 tokens late on average; no spurious switches |
-| PubMed 20k RCT abstracts, dev (10 abstracts, 36 switches, 5 states) | token accuracy 0.79–0.80; switches committed about 23 tokens late (a median sentence is 30 tokens); 5.8 spurious switches per 1,000 tokens, 1–2 with fixed-lag Viterbi |
+| PubMed 20k RCT abstracts, dev, tuning data (10 abstracts, 36 switches, 5 states) | token accuracy 0.79–0.80; switches committed about 23 tokens late (a median sentence is 30 tokens); 5.8 spurious switches per 1,000 tokens, 1–2 with fixed-lag Viterbi |
 | WikiSection disease articles, test (12 streams, one switch each, 10 states offered) | token accuracy 0.88 around the switch; switches about 24 tokens late, not growing over 50 to 3,000 tokens of earlier text |
 | WikiSection disease articles, validation (2 streams, 15 switches, 10 states) | token accuracy 0.56–0.58; more than 2 spurious switches per 1,000 tokens with every decoder tried |
-| Cost per token | 150 ms reading every token; 14–20 ms reading every 8th token, at the same accuracy on the demo and PubMed |
+| Cost per token | 150 ms reading every token; 14–20 ms reading every 8th token, which matched the every-token accuracy on the demo and PubMed dev |
 
 Known limits: switches are detected late. On PubMed abstracts the readings turn about 16 tokens after
 the true switch, and showing the question only the last 30–120 tokens does not shorten this. Many similar
