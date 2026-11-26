@@ -23,6 +23,7 @@ DEFAULT_UNIT = "the last few sentences"   # the wording in reader.QUESTION_HEAD
 class UnitReader(StreamStateReader):
     """H4: the unit to judge is supplied per stream; the rest of the question frame is fixed."""
     unit: str = DEFAULT_UNIT
+    temperature: float = 1.0   # letter logits are divided by this before the softmax (a model's own calibration)
 
     def _question(self, shift: int) -> str:
         q = super()._question(shift)
@@ -34,7 +35,7 @@ class UnitReader(StreamStateReader):
         """Parent's reading, plus the per-ordering log-probabilities kept in self.last_shift_logp."""
         per_shift = []
         for shift, logits in zip(self.shifts, self._branch_all()):
-            lp = torch.log_softmax(logits[self.letters], dim=-1)
+            lp = torch.log_softmax(logits[self.letters] / self.temperature, dim=-1)
             per_shift.append([float(lp[(k - shift) % self.K]) for k in range(self.K)])  # state order
         self.last_shift_logp = per_shift
         acc = torch.tensor(per_shift).sum(0)

@@ -340,3 +340,25 @@ given in this repository's layout and reproduce from the same code.
   - The background rate on these whole-article streams is 19–21 spurious switches per 1k (persist 1).
 - Conclusion: re-anchoring does not delay or lose switches. A small label jump right at the seam is
   possible but not established with 4 seams.
+
+**2026-11-25 · H2O-Lightning-4B as the readout model**
+- Why: H2O-Lightning-4B (h2oai/h2o-lightning-4b, Apache-2.0) is an open-weights Jev-class decision
+  model fine-tuned from Qwen3.5-4B to answer choice questions about a record with calibrated option
+  probabilities. It was not considered when the base model was chosen.
+- Setup: `head_of_state.h2o.H2OReader` builds the model's own prompt format around the cached stream
+  (system line, `record:`, `question:`, lettered `options:`, `Answer:` prefill, choice temperature
+  0.75). The prompt text was checked identical to the model's serving shim. Frozen settings and the
+  scored streams of the previous entry.
+- Commands: `H2O_LIGHTNING_PATH=<checkout> uv run python -I experiments/h2o_readout.py run`, then
+  `... report` → `results/h2o_readout.md`
+- Result, PubMed test (30 abstracts), persist 1, base model → H2O-Lightning:
+  - token accuracy 0.701 → 0.757
+  - boundary F1 ±8 0.26 → 0.43
+  - mean delay 26.8 → 18.8 tokens
+  - spurious per 1k 8.2 → 7.2
+  - ECE 0.142 → 0.059
+  - cost about 13–14 ms per token for both
+- Result, null streams: the true state held for 0.705 of tokens (base 0.622), with 14.4 false
+  switches per 1k under persist 1 (base 24.5) and 4.3 under the filter (base 5.3).
+- Conclusion: the decision-tuned model is better on every measure at the same cost, including about 8
+  tokens less delay and much better calibrated probabilities.
