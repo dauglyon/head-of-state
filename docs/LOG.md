@@ -548,3 +548,17 @@ given in this repository's layout and reproduce from the same code.
 - Conclusion: marking the current line as the target is a large gain for conversations. For abstracts
   it trades a little accuracy for faster noticing, and the earlier 0.927 came from 3 abstracts. For
   multi-sentence topic sections it does not help.
+
+**2026-11-26 · Targeted question on conversations, held-out check**
+- Declared in `docs/TEST_SUITE.md` before the run: ACI-Bench test encounters 21–30, the current
+  question against R2 (the current line as its own part of the record, a direct question, neutral
+  option names), both read every 4th token by H2O-Lightning-4B, settled labels.
+- Commands: `H2O_LIGHTNING_PATH=<checkout> uv run python -I experiments/ask_heldout.py run`, then
+  `... report` → `results/ask_heldout.md`
+- Result (507 turn changes, current → targeted):
+  - token accuracy 0.793 → 0.831
+  - turn changes placed within 16 tokens 167 → 341 (33% → 67%)
+  - boundary F1 ±8 0.47 → 0.79
+  - time to notice 7.7 → 3.7 tokens
+  - spurious per 1k 0.7 → 0.6
+- Conclusion: confirmed on held-out conversations. Available as `--target line` (off by default).

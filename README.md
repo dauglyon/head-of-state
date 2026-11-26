@@ -45,7 +45,9 @@ reported and not counted as error.
 
 Known limits:
 - **Short segments are missed.** Most conversational turns are short (median 12 tokens), and the turn often
-  ends before the model can tell it apart; 58% of turn changes are missed.
+  ends before the model can tell it apart; 58% of turn changes are missed. Asking about the current line as its
+  own part of the record (`--target line`) raised the share placed within 16 tokens from 33% to 67% on 10 fresh
+  conversations, read every 4th token.
 - **Related states are confused.** In the single-state streams, "symptom" and "cause" sections are often read
   as epidemiology or mechanism, so the true state holds for under half of the tokens.
 - **Time to notice depends on the text.** Speaker changes show within about 5 tokens; a new section of an

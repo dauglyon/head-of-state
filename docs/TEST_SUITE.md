@@ -46,6 +46,8 @@ Held-out samples (designated 2026-11-25, before their runs): the default model (
 
 Judging (revised 2026-11-25, before the held-out samples are scored): the output is judged on its settled labels, the best path from Viterbi over all readings of the stream, with each reading treated as evidence for the state d tokens earlier, d = round(0.2 x declared segment length) (PubMed 6, ACI-Bench 2, null streams 38); token accuracy, boundary F1 within 8 and 16 tokens and spurious switches come from those labels. Time to notice, the tokens from a true switch to the first reading at which the online decision (max-product forward pass, no lookahead) shows the new state, is reported alongside and is not counted as error: a stream read left to right cannot know what comes next.
 
+Targeted question, held-out check (declared 2026-11-26, before the run): ACI-Bench clinicalnlp_taskB_test1 two-speaker encounters 21-30, the current question against R2 (the current line as its own part of the record, a direct question, neutral option names), both read every 4th token by H2O-Lightning-4B and judged on settled labels (`experiments/ask_heldout.py`).
+
 Windowed likelihood emissions (HANDOFF Q3 extended, added 2026-11-25): W = 0.0625 x declared segment length (S3: 2 tokens, S1: 12 tokens), hop W/2, sticky forward filter with eta = 1 and switch probability 1/L. Chosen before scored runs by mean committed accuracy over the tuning sets (first 10 PubMed 20k RCT dev abstracts; 2 WikiSection en_disease validation streams), from 0.0625 / 0.125 / 0.25 / 0.5 / 1 / 2 x and no window (`eval/exp_window.py`). The same W applies to the windowed question method (experiment E).
 
 ## Sets

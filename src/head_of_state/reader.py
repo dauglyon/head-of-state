@@ -539,6 +539,10 @@ def main():
                          "cost per token falls about N-fold. 4 to 8 kept accuracy in tests (docs/LOG.md)")
     ap.add_argument("--rotations", type=int, default=2,
                     help="option orderings averaged per reading (default 2); 1 matched 2 in tests")
+    ap.add_argument("--target", choices=["none", "sentence", "line", "passage"], default="none",
+                    help="H2O format only: put the current sentence, line or last 3 sentences in the record as\n"
+                         "its own part and ask about it directly, with neutral option names. 'line' doubled\n"
+                         "the share of turn changes placed in conversations (docs/LOG.md)")
     ap.add_argument("--refine", action="store_true",
                     help="with --stride N: where two readings disagree, bisect between them (about log2 N extra\n"
                          "readings per change) so a switch is placed at a single token")
@@ -576,7 +580,13 @@ def main():
     if a.states:
         import json
         states = json.load(open(a.states))
-    if h2o:
+    if h2o and a.target != "none":
+        from .h2o import TargetedH2OReader
+        reader = TargetedH2OReader(model, tok, states, stride=a.stride, rotations=a.rotations, refine=a.refine,
+                                   persist=a.persist, prior_power=a.prior_power, span_kind=a.target,
+                                   question_text=f"Which option describes the current {a.target}?",
+                                   option_names=[f"s{i + 1}" for i in range(len(states))])
+    elif h2o:
         from .h2o import H2OReader
         reader = H2OReader(model, tok, states, stride=a.stride, rotations=a.rotations, refine=a.refine,
                            persist=a.persist, prior_power=a.prior_power)
