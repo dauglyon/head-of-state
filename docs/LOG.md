@@ -535,3 +535,16 @@ given in this repository's layout and reproduce from the same code.
   states change at that scale (sections of an abstract, speaker turns). It hurts for multi-sentence
   topic sections (WikiSection), where one sentence alone is often ambiguous. These are small samples;
   a larger check and a passage-sized target for WikiSection are next.
+
+**2026-11-26 · Targeted question, larger tuning check**
+- Command: `H2O_LIGHTNING_PATH=<checkout> uv run python -I experiments/ask_confirm.py run`, then `... report`
+  → `results/ask_confirm.md`
+- Setup: tuning samples not used in the first comparison; a reading every 4th token; settled labels.
+- Result (current question → R2):
+  - ACI-Bench train encounters 2–4 (230 turn changes): accuracy 0.871 → 0.905, turn changes placed
+    within 16 tokens 63 → 159, boundary F1 ±8 0.42 → 0.81, time to notice 5.3 → 2.9 tokens.
+  - PubMed dev abstracts 4–10: accuracy 0.894 → 0.872, time to notice 18.3 → 10.6 tokens.
+  - WikiSection validation, with the last 3 sentences as the target: 0.533 → 0.507.
+- Conclusion: marking the current line as the target is a large gain for conversations. For abstracts
+  it trades a little accuracy for faster noticing, and the earlier 0.927 came from 3 abstracts. For
+  multi-sentence topic sections it does not help.
