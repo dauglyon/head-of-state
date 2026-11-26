@@ -648,3 +648,24 @@ given in this repository's layout and reproduce from the same code.
 - Conclusion: not better on every list, so no confirmation run and no change of default. Asking about one
   sentence notices news-topic changes much sooner but gives noisier readings where a state spans many
   sentences (disease-article sections), as on WikiSection before.
+
+**2026-11-26 · Joined documents: reading interval and decoder length (HANDOFF task 6, offline)**
+- Commands: `uv run python -I experiments/joined_knobs.py > results/joined_knobs.md`, then the
+  `plot_tradeoff.py` line in its docstring → `results/joined_knobs.html`
+- Setup: the saved every-token readings of the seed-0 streams, replayed. Keeping every Nth reading
+  reproduces `--stride N`, since a reading at token N sees the same cache either way. Decoder length 0.25×
+  to 4× the declared length; reading interval 1 to 16 tokens.
+- Result:
+  - The decoder length changes almost nothing at one reading per token (AG News accuracy 0.865 at every
+    length): each reading is counted as independent evidence, and with one per token they outweigh the
+    transition probabilities.
+  - Reading less often lowers false switches and keeps or raises settled accuracy; time to notice grows.
+    Every token → every 8th token: AG News 0.865 → 0.886, false switches 3.1 → 1.9 per 1k, time to notice
+    33 → 50 tokens; WikiSection 0.683 → 0.706, 4.8 → 1.6; IMDB 0.889 → 0.891, 2.1 → 1.5, 49 → 64.
+  - Keeping every reading but raising each to the power η (η = 1/8) gives the same trade: AG News 0.898,
+    WikiSection 0.712, IMDB 0.885.
+  - Mean time to notice is averaged over the switches the live output noticed, so it moves when one slow
+    switch drops in or out (WikiSection: 90 tokens at every token, 26 at every 2nd).
+- Conclusion: consecutive readings are not independent evidence, and the decoder treats them as if they
+  were. Reading every token buys earlier noticing only; settled labels are as good or better from a reading
+  every 4th–8th token at a quarter to an eighth of the cost.

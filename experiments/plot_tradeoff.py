@@ -18,6 +18,11 @@ SERIES = [  # (decoder column value, legend name, parameter name, css slot)
     ("filter_L×1", "Forward filter (declared L)", "η", "--series-2"),
     ("raw", "Raw argmax", "", "--series-3"),
 ]
+SERIES_SETS = {"decoders": SERIES,
+               "joined": [  # experiments/joined_knobs.py: one series per state list, the reading interval varied
+                   ("ag_news", "News topics", "reading every", "--series-1"),
+                   ("wikisection", "Disease-article sections", "reading every", "--series-2"),
+                   ("imdb", "Review sentiment", "reading every", "--series-3")]}
 
 CSS = """
 .viz-root{color-scheme:light;--surface-1:#fcfcfb;--page:#f9f9f7;--text-primary:#0b0b0b;--text-secondary:#52514e;
@@ -47,17 +52,21 @@ def main():
     ap.add_argument("--rotations", default="2")
     ap.add_argument("--stride", default="1")
     ap.add_argument("--prior-power", default="0.0")
+    ap.add_argument("--series", choices=list(SERIES_SETS), default="decoders")
+    ap.add_argument("--subtitle", help="replaces the settings line under the title")
+    ap.add_argument("--keep-order", action="store_true", help="join points in file order, not by delay")
     a = ap.parse_args()
+    series = SERIES_SETS[a.series]
     rows = [r for r in csv.DictReader(a.csv.open())
             if r["rotations"] == a.rotations and r["stride"] == a.stride
             and float(r["prior_power"]) == float(a.prior_power)]
     pts = {}
-    for key, *_ in SERIES:
+    for key, *_ in series:
         sel = [r for r in rows if r["decoder"] == key]
         pts[key] = sorted(({"x": float(r["mean_delay_tokens"]), "y": float(r["spurious_per_1k_tokens"]),
                             "p": r["param"], "acc": float(r["accuracy_committed"]),
                             "m": f'{r["switches_matched"]}/{r["true_switches"]}'} for r in sel),
-                          key=lambda d: d["x"])
+                          key=lambda d: 0 if a.keep_order else d["x"])
     allp = [d for v in pts.values() for d in v]
     xmax = max(d["x"] for d in allp) * 1.08
     # Log y: the raw decoder's spurious rate is an order of magnitude above the useful settings.
@@ -83,7 +92,7 @@ def main():
     svg.append(f'<text x="{M["l"] + pw / 2}" y="{H - 10}" text-anchor="middle">Mean delay after a true switch (tokens)</text>')
     svg.append(f'<text transform="translate(16,{M["t"] + ph / 2}) rotate(-90)" text-anchor="middle">'
                'Spurious switches per 1,000 tokens (log)</text>')
-    for key, name, pname, slot in SERIES:
+    for key, name, pname, slot in series:
         ps = pts[key]
         if len(ps) > 1:
             d = " ".join(f'{"M" if i == 0 else "L"}{sx(p["x"]):.1f},{sy(p["y"]):.1f}' for i, p in enumerate(ps))
@@ -95,7 +104,7 @@ def main():
                        f'<circle class="hit" cx="{sx(p["x"]):.1f}" cy="{sy(p["y"]):.1f}" r="12" fill="transparent" '
                        f'data-tip="{tip}"/>')
     # Direct labels at each series' last point (largest delay), pushed apart vertically.
-    labels = sorted(([sy(pts[k][-1]["y"]) + 4, sx(pts[k][-1]["x"]) + 10, n] for k, n, *_ in SERIES if pts[k]),
+    labels = sorted(([sy(pts[k][-1]["y"]) + 4, sx(pts[k][-1]["x"]) + 10, n] for k, n, *_ in series if pts[k]),
                     key=lambda l: l[0])
     for i in range(1, len(labels)):
         labels[i][0] = max(labels[i][0], labels[i - 1][0] + 15)
@@ -103,16 +112,16 @@ def main():
         svg.append(f'<text x="{x:.1f}" y="{y:.1f}" style="fill:var(--text-primary)">{html.escape(n)}</text>')
     svg.append("</svg>")
 
-    table = ["<table><tr><th>Decoder</th><th>Parameter</th><th>Mean delay</th><th>Spurious /1k</th>"
+    table = ["<table><tr><th>Series</th><th>Parameter</th><th>Mean delay</th><th>Spurious /1k</th>"
              "<th>Matched</th><th>Committed acc.</th></tr>"]
-    for key, name, pname, _ in SERIES:
+    for key, name, pname, _ in series:
         for p in pts[key]:
             table.append(f'<tr><td>{html.escape(name)}</td><td>{html.escape(pname + " " + p["p"]) if pname else ""}</td>'
                          f'<td>{p["x"]:.1f}</td><td>{p["y"]:.2f}</td><td>{p["m"]}</td><td>{p["acc"]:.3f}</td></tr>')
     table.append("</table>")
-    legend = "".join(f'<span style="--c:var({slot})">{html.escape(name)}</span>' for _, name, _, slot in SERIES)
-    sub = (f"rotations {a.rotations}, stride {a.stride}, prior-power {a.prior_power}. "
-           "Lower left is better. Hover a point for its parameter.")
+    legend = "".join(f'<span style="--c:var({slot})">{html.escape(name)}</span>' for _, name, _, slot in series)
+    sub = a.subtitle or (f"rotations {a.rotations}, stride {a.stride}, prior-power {a.prior_power}. "
+                         "Lower left is better. Hover a point for its parameter.")
     page = f"""<!doctype html><meta charset="utf-8"><title>{html.escape(a.title)}</title><style>{CSS}</style>
 <div class="viz-root"><div class="card"><h1>{html.escape(a.title)}: delay against spurious switches</h1>
 <p class="sub">{html.escape(sub)}</p><div class="legend">{legend}</div>{"".join(svg)}<div class="tip"></div>

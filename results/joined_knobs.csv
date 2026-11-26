@@ -1,0 +1,16 @@
+decoder,param,stride,rotations,prior_power,mean_delay_tokens,spurious_per_1k_tokens,accuracy_committed,switches_matched,true_switches
+ag_news,1 tokens,swept,1,0.0,32.69,3.07,0.8648,15,21
+ag_news,2 tokens,swept,1,0.0,35.85,2.43,0.8809,15,21
+ag_news,4 tokens,swept,1,0.0,41.28,2.1,0.8906,15,21
+ag_news,8 tokens,swept,1,0.0,50.36,1.94,0.8862,13,21
+ag_news,16 tokens,swept,1,0.0,59.17,1.62,0.889,13,21
+wikisection,1 tokens,swept,1,0.0,90.35,4.84,0.6829,4,8
+wikisection,2 tokens,swept,1,0.0,26.38,4.06,0.6906,4,8
+wikisection,4 tokens,swept,1,0.0,33.18,2.81,0.6988,4,8
+wikisection,8 tokens,swept,1,0.0,41.98,1.56,0.7063,4,8
+wikisection,16 tokens,swept,1,0.0,61.22,0.94,0.6862,4,8
+imdb,1 tokens,swept,1,0.0,48.51,2.13,0.8888,7,19
+imdb,2 tokens,swept,1,0.0,54.49,1.83,0.8918,7,19
+imdb,4 tokens,swept,1,0.0,62.15,1.68,0.8899,6,19
+imdb,8 tokens,swept,1,0.0,64.16,1.52,0.891,7,19
+imdb,16 tokens,swept,1,0.0,82.42,1.37,0.8939,8,19
