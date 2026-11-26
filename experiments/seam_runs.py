@@ -103,7 +103,10 @@ def report():
                 continue
             nxt = next((j for j in range(i + 1, len(g)) if g[j] != g[i]), len(g))
             hit = next((j for j in range(i, nxt) if lab[j] == g[i] and lab[j - 1] != g[i]), None)
-            delay = None if hit is None else int(pos[hit] - pos[i])
+            t = int(pos[i])                       # the token where the true switch happens
+            while t > int(pos[i - 1]) + 1 and gold[t - 2] == g[i]:
+                t -= 1
+            delay = None if hit is None else int(pos[hit] - t)
             tpos = int(pos[i])
             near = any(0 <= tpos - s_ < NEAR for s_ in r["seams"])
             rows.setdefault(starts[tpos - 1] // 50, {})[r["id"]] = (delay, near, tpos)

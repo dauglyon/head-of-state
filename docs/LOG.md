@@ -394,3 +394,20 @@ given in this repository's layout and reproduce from the same code.
 - Conclusion: who is speaking is read quickly and accurately, so detection lag depends on how clearly
   the text signals a change. About half the turn changes are missed because many turns are shorter
   than the reading interval or the commit rule allows; reading every token does not recover them.
+
+**2026-11-25 · Correction: delay is now counted from the switch token**
+- Change: `score()` counted a switch's delay from the first reading after the true switch. With a
+  reading every N tokens that left out the wait for that reading (0 to N−1 tokens), so delays of
+  sparse-reading runs were understated. Delay now runs from the token where the true switch happens.
+  Tested in `tests/test_reader.py`, case 10. Every results table was regenerated from the saved runs.
+- Corrected delays (old → new), runs with sparse readings:
+  - PubMed test, every 8th token: base model, persist 1, 26.8 → 30.7 tokens (filter 39.0 → 42.8);
+    H2O-Lightning, persist 1, 18.8 → 22.8 (filter 27.0 → 31.0).
+  - ACI-Bench, every 8th token: 2.9–3.8 → 6.4–7.2 tokens. A breakdown of the caught turn changes:
+    3.4 tokens of wait until the next reading, then 86% labelled correctly at that first reading.
+  - Seam control: 20.6 → 23.4 near seams, 34.0 → 36.9 elsewhere.
+  - Asking every 8th token on PubMed dev 11–40: 34.5 → 38.3. Windowed asking and S1 runs read every
+    2nd token and changed by about 1 token (`results/windowed_asking.md`,
+    `results/likelihood_vs_question.md`).
+  - Stride sweep: see `results/stride_sweep.md`.
+- Accuracy, switch counts and spurious rates are unchanged. Runs that read every token are unchanged.

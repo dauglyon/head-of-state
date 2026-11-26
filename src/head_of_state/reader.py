@@ -351,7 +351,12 @@ def score(readings: list[Reading], gold: list[int]) -> dict:
     for j, i in enumerate(true_sw):
         end = true_sw[j + 1] if j + 1 < len(true_sw) else len(g)
         hit = next((k for k in range(i, end) if readings[k].switched and readings[k].state == g[i]), None)
-        delays.append(math.nan if hit is None else readings[hit].pos - readings[i].pos)
+        # Delay runs from the token where the true switch happens, not from the first reading after it,
+        # so that the wait for the next reading (up to stride - 1 tokens) is counted.
+        t = readings[i].pos
+        while t > readings[i - 1].pos + 1 and gold[t - 2] == g[i]:
+            t -= 1
+        delays.append(math.nan if hit is None else readings[hit].pos - t)
     found = [d for d in delays if not math.isnan(d)]
     n_sw = sum(r.switched for r in readings)       # segments are disjoint: each commit matches at most once
     return {

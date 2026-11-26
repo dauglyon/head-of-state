@@ -1,3 +1,4 @@
+
 ## PubMed dev abstracts 11–40 (13932 tokens); directions fitted on abstracts 1–10 labelled by asking
 
 | Readout | decoder | token acc. | boundary F1 ±8 | ±16 | matched | mean delay | spurious /1k | Brier | ECE |
@@ -11,7 +12,7 @@
 | distilled directions | fixed-lag Viterbi, lag 8 (+8 latency) | 0.756 | 0.37 | 0.46 | 65/97 | 19.7 | 13.7 | 0.518 | 0.153 |
 | distilled + asked every 8th token, fused | forward filter, cheap η=1 | 0.790 | 0.21 | 0.27 | 82/97 | 13.5 | 29.1 | 0.351 | 0.135 |
 | distilled + asked every 8th token, fused | forward filter, cheap η=0.25 | 0.743 | 0.15 | 0.32 | 81/97 | 25.6 | 6.7 | 0.415 | 0.150 |
-| asking alone, every 8th token | forward filter η=1 | 0.694 | 0.19 | 0.35 | 74/97 | 34.5 | 2.0 | 0.535 | 0.243 |
+| asking alone, every 8th token | forward filter η=1 | 0.694 | 0.19 | 0.35 | 74/97 | 38.3 | 2.0 | 0.535 | 0.243 |
 
 ## WikiSection validation streams 3–6 (5455 tokens, regimes recur); directions fitted on streams 0–2 labelled by asking (regimes seen in warm-up: 10 of 10)
 
@@ -26,7 +27,7 @@
 | distilled directions | fixed-lag Viterbi, lag 8 (+8 latency) | 0.308 | 0.23 | 0.25 | 16/27 | 43.4 | 22.9 | 0.837 | 0.043 |
 | distilled + asked every 2th token, fused | forward filter, cheap η=1 | 0.556 | 0.18 | 0.24 | 20/27 | 19.9 | 25.5 | 0.839 | 0.410 |
 | distilled + asked every 2th token, fused | forward filter, cheap η=0.25 | 0.582 | 0.27 | 0.39 | 22/27 | 33.4 | 9.0 | 0.803 | 0.391 |
-| asking alone, every 2th token | forward filter η=1 | 0.599 | 0.26 | 0.38 | 21/27 | 34.8 | 8.4 | 0.765 | 0.374 |
+| asking alone, every 2th token | forward filter η=1 | 0.599 | 0.26 | 0.38 | 21/27 | 35.5 | 8.4 | 0.765 | 0.374 |
 
 ## S1 lag streams (12): delay by previous-segment length, scored from 16 tokens before the switch
 

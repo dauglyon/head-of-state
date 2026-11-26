@@ -14,12 +14,12 @@
 | asking, full history, 2 orderings (prototype default) | forward filter η=1 | 0.775 | 0.24 | 0.33 | 33/36 | 25.5 | 4.8 | 0.417 | 0.202 | 150 | 1 stream + 2 questions, batched |
 | likelihood, hopped window W=2 | raw argmax | 0.338 | 0.02 | 0.02 | 36/36 | 2.1 | 735.2 | 0.765 | 0.026 | 55 | 11-token rebuild of 5+1 copies per token (hop 1) |
 | likelihood, hopped window W=2 | forward filter η=1 | 0.587 | 0.10 | 0.11 | 26/36 | 10.6 | 108.4 | 0.569 | 0.114 | 55 | 11-token rebuild of 5+1 copies per token (hop 1) |
-| asking, last 30 tokens only (1×), every 2nd token | raw argmax | 0.756 | 0.18 | 0.27 | 29/36 | 17.9 | 35.6 | 0.358 | 0.099 | 39 | 1 pass over opening + 30 tokens + question, per 2 tokens |
-| asking, last 30 tokens only (1×), every 2nd token | forward filter η=1 | 0.752 | 0.23 | 0.36 | 24/36 | 16.5 | 12.7 | 0.447 | 0.212 | 39 | 1 pass over opening + 30 tokens + question, per 2 tokens |
-| asking, last 60 tokens only (2×), every 2nd token | raw argmax | 0.796 | 0.20 | 0.28 | 28/36 | 15.2 | 17.9 | 0.325 | 0.108 | 45 | 1 pass over opening + 60 tokens + question, per 2 tokens |
-| asking, last 60 tokens only (2×), every 2nd token | forward filter η=1 | 0.773 | 0.20 | 0.38 | 25/36 | 19.7 | 3.7 | 0.419 | 0.206 | 45 | 1 pass over opening + 60 tokens + question, per 2 tokens |
-| asking, last 120 tokens only (4×), every 2nd token | raw argmax | 0.761 | 0.18 | 0.24 | 30/36 | 21.9 | 16.9 | 0.376 | 0.135 | 55 | 1 pass over opening + 120 tokens + question, per 2 tokens |
-| asking, last 120 tokens only (4×), every 2nd token | forward filter η=1 | 0.732 | 0.17 | 0.29 | 28/36 | 30.1 | 3.7 | 0.505 | 0.247 | 55 | 1 pass over opening + 120 tokens + question, per 2 tokens |
+| asking, last 30 tokens only (1×), every 2nd token | raw argmax | 0.756 | 0.18 | 0.27 | 29/36 | 18.6 | 35.6 | 0.358 | 0.099 | 39 | 1 pass over opening + 30 tokens + question, per 2 tokens |
+| asking, last 30 tokens only (1×), every 2nd token | forward filter η=1 | 0.752 | 0.23 | 0.36 | 24/36 | 17.2 | 12.7 | 0.447 | 0.212 | 39 | 1 pass over opening + 30 tokens + question, per 2 tokens |
+| asking, last 60 tokens only (2×), every 2nd token | raw argmax | 0.796 | 0.20 | 0.28 | 28/36 | 15.9 | 17.9 | 0.325 | 0.108 | 45 | 1 pass over opening + 60 tokens + question, per 2 tokens |
+| asking, last 60 tokens only (2×), every 2nd token | forward filter η=1 | 0.773 | 0.20 | 0.38 | 25/36 | 20.4 | 3.7 | 0.419 | 0.206 | 45 | 1 pass over opening + 60 tokens + question, per 2 tokens |
+| asking, last 120 tokens only (4×), every 2nd token | raw argmax | 0.761 | 0.18 | 0.24 | 30/36 | 22.5 | 16.9 | 0.376 | 0.135 | 55 | 1 pass over opening + 120 tokens + question, per 2 tokens |
+| asking, last 120 tokens only (4×), every 2nd token | forward filter η=1 | 0.732 | 0.17 | 0.29 | 28/36 | 30.9 | 3.7 | 0.505 | 0.247 | 55 | 1 pass over opening + 120 tokens + question, per 2 tokens |
 | 3a activation directions from model-written passages | raw argmax | 0.608 | 0.05 | 0.06 | 29/36 | 16.2 | 250.1 | 0.536 | 0.142 | 0.51 | 0 extra (read from the stream pass) |
 | 3a activation directions from model-written passages | forward filter η=1 | 0.717 | 0.15 | 0.28 | 18/36 | 53.1 | 16.9 | 0.476 | 0.197 | 0.51 | 0 extra (read from the stream pass) |
 | reference: bge-m3 similarity to descriptions, last 32 tokens | raw argmax | 0.575 | 0.09 | 0.11 | 28/36 | 19.6 | 89.9 | 0.552 | 0.101 | 1 | 1 embedding pass |

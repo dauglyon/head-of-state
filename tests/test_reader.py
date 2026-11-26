@@ -206,4 +206,11 @@ labels = StreamStateReader.token_states(got)
 m = score(got, gold[:60])
 assert abs(m["accuracy_committed"] - sum(a == b for a, b in zip(labels, gold[:60])) / 60) < 1e-9
 print("9   ok  stride 7: every token labelled by the reading that follows it; token accuracy over all 60 tokens")
+
+# 10: delay counts from the token where the true switch happens: with readings every 4th token, a
+#     switch at token 6 committed by the reading at token 8 has delay 2 (not 0 from the reading).
+rs10 = [Reading(4 * (i + 1), [], s, s, i > 0 and s != [0, 1, 1][i - 1]) for i, s in enumerate([0, 1, 1])]
+m10 = score(rs10, [0] * 5 + [1] * 7)
+assert m10["switches_found"] == 1 and m10["mean_delay_tokens"] == 2.0, m10
+print("10  ok  delay counted from the switch token (switch at token 6, committed at token 8: 2 tokens)")
 print("all mechanics tests passed")
