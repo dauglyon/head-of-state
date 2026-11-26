@@ -868,3 +868,12 @@ given in this repository's layout and reproduce from the same code.
   comparison catalogue against the question readout; secondary, instruction against the question readout and
   catalogue against instruction; paired over the 12 streams, exact sign-flip test, interval by resampling streams.
   The catalogue form is checked on the three seed-0 news streams first.
+
+**2026-11-26 · TRIPOD tuning, catalogue form (all three synopses)**
+- Command: `H2O_LIGHTNING_PATH=<checkout> uv run python -I experiments/stated_sets.py run --set tripod --sample
+  tuning --form catalogue` → `results/stated_sets_tuning.md`
+- Result: token accuracy 0.208 (instruction form 0.215; always the most common stage 0.231). Evidence for the true
+  stage rises from −0.03 / 0.16 / 0.02 to 0.21 / 0.35 / 0.16 nats per token, but final push still takes 88% of the
+  labels (true 11%).
+- Conclusion: no-go for story stages in both forms; the catalogue form raises the evidence without removing the
+  takeover.

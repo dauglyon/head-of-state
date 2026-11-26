@@ -16,6 +16,8 @@ Tuning sample. Emission: P(actual next token | text so far, state) with the owne
 | tripod | tripod-We Own the Night (film) | 904 | 0.156 | progress vs final push: -0.394 | 0.51 | 0.11 | 0.89 | -0.33 to +0.27 | -4.61 | 0.273 | 2/6 | 0/5 | 1.1 | 60 | 207 |
 | tripod | tripod-Men in Black (film) | 1378 | 0.021 | progress vs final push: -1.205 | 0.60 | 0.12 | 0.26 | -0.53 to +0.43 | -4.55 | 0.226 | 2/6 | 0/5 | 0.7 | 70 | 210 |
 | tripod, catalogue | tripod-Pretty Woman | 1016 | 0.209 | complications vs final push: -0.471 | 0.44 | 0.13 | 0.76 | -0.35 to +0.38 | -4.68 | 0.175 | 2/6 | 0/5 | 1.0 | nan | 137 |
+| tripod, catalogue | tripod-We Own the Night (film) | 904 | 0.347 | complications vs final push: -0.385 | 0.55 | 0.19 | 1.62 | -0.42 to +0.38 | -4.74 | 0.273 | 2/6 | 0/5 | 1.1 | nan | 142 |
+| tripod, catalogue | tripod-Men in Black (film) | 1378 | 0.156 | new situation vs final push: -0.669 | 0.50 | 0.20 | 0.36 | -0.27 to +0.40 | -4.56 | 0.190 | 1/6 | 0/5 | 0.7 | nan | 139 |
 | newsdiscourse | nd-validation-NYT_ENG_20090825.0142 | 490 | 0.099 | previous event vs main event: -0.415 | 0.47 | 0.19 | 0.38 | -0.26 to +0.25 | -4.56 | 0.082 | 1/12 | 1/11 | 0.0 | 2 | 273 |
 | newsdiscourse | nd-validation-nyt_corpus_data_2007_01_07_1817145 | 1426 | 0.059 | current context vs main event: -0.494 | 0.50 | 0.22 | -0.21 | -0.28 to +0.41 | -4.60 | 0.034 | 2/20 | 1/19 | 0.0 | 4 | 281 |
 | newsdiscourse | nd-validation-PReuters_108 | 562 | 0.216 | previous event vs main event: -0.269 | 0.54 | 0.17 | 0.79 | -0.36 to +0.27 | -4.85 | 0.103 | 1/12 | 2/11 | 1.8 | 28 | 273 |
