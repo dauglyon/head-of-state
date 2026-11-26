@@ -1,8 +1,3 @@
-   Building head-of-state @ file:///home/dauglyon/work/head-of-state
-      Built head-of-state @ file:///home/dauglyon/work/head-of-state
-Uninstalled 1 package in 0.21ms
-Installed 1 package in 0.26ms
-
 ## PubMed dev abstracts 11–40 (13932 tokens); directions fitted on abstracts 1–10 labelled by asking
 
 | Readout | decoder | token acc. | boundary F1 ±8 | ±16 | matched | mean delay | spurious /1k | Brier | ECE |
