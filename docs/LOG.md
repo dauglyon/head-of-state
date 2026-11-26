@@ -681,3 +681,13 @@ given in this repository's layout and reproduce from the same code.
 - Conclusion: a trade, not a gain: slightly higher accuracy and 30–60% fewer false switches for much later
   noticing and a few switches placed further off. The default stays η = 1; the trade is the same one a
   longer reading interval gives at lower cost.
+
+**2026-11-26 · Decoders on the same readings, joined documents (HANDOFF question 2, offline)**
+- Command: `uv run python -I experiments/joined_decoders.py > results/joined_decoders.md`
+- Result, seed-2 streams, every token (raw argmax / persist 3 / forward filter / Viterbi):
+  - AG News: accuracy 0.858 / 0.858 / 0.859 / 0.874; false switches per 1k 27.9 / 6.6 / 3.4 / 2.4
+  - WikiSection: 0.630 / 0.634 / 0.628 / 0.655; 91.1 / 24.1 / 10.5 / 5.3
+  - IMDB: 0.800 / 0.799 / 0.803 / 0.809; 33.2 / 8.2 / 4.8 / 2.4
+- Conclusion: as the literature in HANDOFF expects, decoding changes stability far more than accuracy:
+  Viterbi removes about 90% of the raw readings' false switches and adds 1–2.5 points of accuracy. Raw
+  argmax places the most switches within 16 tokens only because it switches so often.
