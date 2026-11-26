@@ -1,6 +1,7 @@
-"""head_of_state.reader
+"""head_of_state.reader (Head of State)
 
-Zero-shot hidden-state labelling of a token stream with a frozen causal LM.
+Zero-shot regime tracking from an open-weights LLM's output head.
+Hidden-state inference from plain-English descriptions.
 
     Input : a token stream + a list of named states (given at run time)
     Output: for every position N, a probability for each state and the likeliest one,

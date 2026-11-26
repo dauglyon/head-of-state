@@ -1,7 +1,7 @@
 [project]
 name = "head-of-state"
 version = "0.1.0"
-description = "Zero-shot regime tracking, read from a frozen model's own output head."
+description = "Zero-shot regime tracking from an open-weights LLM's output head."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
