@@ -890,3 +890,9 @@ given in this repository's layout and reproduce from the same code.
   the next-token emissions do, while both fall below always the most common state on acts and sentence roles.
   These three label how finished text functions; the text barely depends on them (next-token evidence about a
   third of that for topics and sections), so they do not test the method's hidden states (owner, 2026-11-26).
+
+**2026-11-26 · Switchboard, NewsDiscourse and TRIPOD dropped from the evaluation**
+- Owner's decision. A hidden state here is the condition the text is written under (the topic of an article, the
+  section of a document, the phase of a call), so the words differ because of it; the next-token emission
+  measures exactly that. Dialogue acts, sentence roles and story stages are labels put on finished text, and the
+  text barely depends on them. Test sets are being reselected on that criterion.

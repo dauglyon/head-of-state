@@ -72,10 +72,10 @@ Known limits:
 Next-token emissions, tuning stage (not yet confirmed on unread data):
 - **News topics:** 0.929 token accuracy against 0.865 for the Jev-style readout on the same 3 tuning
   streams; 12 unread streams are next, with the comparison declared beforehand.
-- **Test sets from prior work** (tuning documents only): section types in whole WikiSection articles 0.67
-  against 0.23 for always the most common state. For states about what the text is doing (Switchboard
-  dialogue acts, NewsDiscourse sentence roles, TRIPOD story stages) each token carries little evidence, and
-  labels stay at or below always the most common state.
+- **Section types in whole WikiSection articles** (tuning documents only): 0.67 against 0.23 for always the
+  most common state.
+- Dialogue acts, news sentence roles and story stages were tried and dropped: they label how finished text
+  functions, the text barely depends on them, and they are not hidden states in this sense (`docs/LOG.md`).
 
 Earlier exploratory, tuning and comparison runs (other models, readouts, decoders and settings) are in
 `docs/LOG.md`, with an audit of the scoring and its corrections.
