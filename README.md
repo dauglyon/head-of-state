@@ -34,5 +34,5 @@ uv run python tests/test_reader.py        # mechanics tests on tiny random model
 ```
 
 Datasets for the experiments: `experiments/data/download.sh`. Method and decoder notes: `docs/method.md`;
-the original brief: `docs/HANDOFF.md`; evaluation plan: `docs/TEST_SUITE.md`; prior work:
+the original brief: `docs/HANDOFF.md`; evaluation plan: `docs/TEST_SUITE.md`; planned experiments: `docs/EXPERIMENTS.md`; prior work:
 `docs/research/prior-art.md`; every run, its command and its result: `docs/LOG.md`.
