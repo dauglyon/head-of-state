@@ -631,3 +631,20 @@ given in this repository's layout and reproduce from the same code.
   article sections the new text itself is ambiguous at first, as the earlier windowed-question runs found
   on WikiSection. Part of the hold-back is the question itself, which asks about "the last few sentences"
   and so still covers the previous segment for the first sentence or two.
+
+**2026-11-26 · Joined documents: asking about the current sentence (tuning streams)**
+- Declared in `docs/TEST_SUITE.md` before the run. Commands: `H2O_LIGHTNING_PATH=<checkout> uv run python -I
+  experiments/joined_documents.py run --target sentence`, then `... report --target sentence` →
+  `results/joined_documents_target_sentence.md`
+- Setup: the seed-0 streams; the current sentence as its own part of the record, a direct question,
+  neutral option names; every token; settled labels without shift.
+- Result, current question → current-sentence question:
+  - AG News: accuracy 0.865 → 0.881, switches placed within 16 tokens 15 → 18 of 21, time to notice
+    33 → 13 tokens, spurious per 1k 3.1 → 4.9
+  - WikiSection: 0.683 → 0.628, 4 → 8 of 8, 90 → 70 tokens, spurious 4.8 → 14.0
+  - IMDB: 0.889 → 0.881, 7 → 7 of 19, 49 → 46 tokens, spurious 2.1 → 2.3
+- Offline, both readings combined as two emission streams in Viterbi (product of the probabilities, each
+  raised to 0.5): AG News 0.903, WikiSection 0.675, IMDB 0.881, at twice the reading cost.
+- Conclusion: not better on every list, so no confirmation run and no change of default. Asking about one
+  sentence notices news-topic changes much sooner but gives noisier readings where a state spans many
+  sentences (disease-article sections), as on WikiSection before.

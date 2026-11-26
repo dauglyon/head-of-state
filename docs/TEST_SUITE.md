@@ -56,6 +56,8 @@ Joined labelled documents, HANDOFF task 5 (declared 2026-11-26, before the run):
 
 Joined labelled documents, confirmation (declared 2026-11-26, before the run): the same three lists and construction, 3 new streams per list built with seed 2 (documents not used in the seed-0 streams), judged on settled labels with no reading shift (readings used where they were taken), the rule chosen after the seed-0 streams; the pre-registered 0.2 x length shift is reported alongside (`experiments/joined_documents.py run --seed 2`).
 
+Joined labelled documents, targeted question (declared 2026-11-26, before the run): tuning comparison on the seed-0 streams, the current question against the current sentence as its own part of the record with a direct question and neutral option names, every token, settled labels without shift. If it is better on the tuning streams, it is confirmed on 3 new streams per list (seed 3, documents not in the seed-0 streams) before any change of default.
+
 Windowed likelihood emissions (HANDOFF Q3 extended, added 2026-11-25): W = 0.0625 x declared segment length (S3: 2 tokens, S1: 12 tokens), hop W/2, sticky forward filter with eta = 1 and switch probability 1/L. Chosen before scored runs by mean committed accuracy over the tuning sets (first 10 PubMed 20k RCT dev abstracts; 2 WikiSection en_disease validation streams), from 0.0625 / 0.125 / 0.25 / 0.5 / 1 / 2 x and no window (`eval/exp_window.py`). The same W applies to the windowed question method (experiment E).
 
 ## Sets

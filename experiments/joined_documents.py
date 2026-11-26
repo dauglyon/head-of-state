@@ -4,6 +4,7 @@
     H2O_LIGHTNING_PATH=<checkout> uv run python -I experiments/joined_documents.py run [list ...]
     uv run python -I experiments/joined_documents.py report           # results/joined_documents.md
     ... run --seed 2, report --seed 2: confirmation streams of documents not in the seed-0 streams
+    ... run --target sentence, report --target sentence: the targeted question (current sentence, neutral names)
 
 Each stream is a run of segments; a segment is one or more documents with the same label, joined with
 single spaces, so every token has an exact true state and nothing in the formatting marks a switch.
@@ -123,14 +124,15 @@ def streams_for(name, tok, seed):
     return build(name, tok, seed=seed, exclude=used)[0]
 
 
-def out_file(name, seed):
-    return OUT / (f"{name}.jsonl" if seed == 0 else f"{name}_seed{seed}.jsonl")
+def out_file(name, seed, target=None):
+    stem = name if seed == 0 else f"{name}_seed{seed}"
+    return OUT / (f"{stem}_target_{target}.jsonl" if target else f"{stem}.jsonl")
 
 
-def run(names, seed=0):
+def run(names, seed=0, target=None):
     import torch
     from transformers import AutoModelForCausalLM
-    from head_of_state.h2o import H2OReader
+    from head_of_state.h2o import H2OReader, TargetedH2OReader
     from head_of_state.harness import run_stream
     assert all(DECLARED[n] for n in names), "declare segment lengths first (measure, docs/TEST_SUITE.md)"
     tok = tokenizer()
@@ -139,14 +141,19 @@ def run(names, seed=0):
     OUT.mkdir(parents=True, exist_ok=True)
     for name in names:
         streams = streams_for(name, tok, seed)
-        reader = H2OReader(model, tok, LISTS[name], unit=UNIT, **FROZEN)
+        if target:   # the current sentence as its own part of the record, neutral option names (docs/LOG.md)
+            reader = TargetedH2OReader(model, tok, LISTS[name], span_kind=target, **FROZEN,
+                                       question_text=f"Which option describes the current {target}?",
+                                       option_names=[f"s{i + 1}" for i in range(len(LISTS[name]))])
+        else:
+            reader = H2OReader(model, tok, LISTS[name], unit=UNIT, **FROZEN)
         n = sec = 0
-        with out_file(name, seed).open("w") as f:
+        with out_file(name, seed, target).open("w") as f:
             for s in streams:
                 rec = run_stream(reader, s, tok)
                 n += rec["n_tokens"]; sec += rec["seconds"]
                 f.write(json.dumps(rec) + "\n")
-        print(f"{name} (seed {seed}): {len(streams)} streams, {n} tokens, {1000 * sec / n:.0f} ms/token", flush=True)
+        print(f"{name} (seed {seed}, target {target}): {len(streams)} streams, {n} tokens, {1000 * sec / n:.0f} ms/token", flush=True)
 
 
 def notice_by_previous_length(online, positions, gold):
@@ -164,7 +171,7 @@ def notice_by_previous_length(online, positions, gold):
     return out
 
 
-def report(seed=0):
+def report(seed=0, target=None):
     from head_of_state.decoders import probs
     from head_of_state.metrics import pool, stream_counts
     from head_of_state.settle import online_labels, settled_labels
@@ -174,7 +181,7 @@ def report(seed=0):
           "ms/token |\n|---|---|---|---|---|---|---|---|---|---|")
     lag = {}
     for name in LISTS:
-        f = out_file(name, seed)
+        f = out_file(name, seed, target)
         if not f.exists():
             continue
         L = DECLARED[name]
@@ -222,6 +229,8 @@ if __name__ == "__main__":
         args = sys.argv[2:]
         seed = int(args[args.index("--seed") + 1]) if "--seed" in args else 0
         names = [a for i, a in enumerate(args) if a in LISTS]
-        run(names or list(LISTS), seed)
+        target = args[args.index("--target") + 1] if "--target" in args else None
+        run(names or list(LISTS), seed, target)
     else:
-        report(int(sys.argv[sys.argv.index("--seed") + 1]) if "--seed" in sys.argv else 0)
+        a = sys.argv
+        report(int(a[a.index("--seed") + 1]) if "--seed" in a else 0, a[a.index("--target") + 1] if "--target" in a else None)
