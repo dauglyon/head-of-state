@@ -722,3 +722,26 @@ given in this repository's layout and reproduce from the same code.
 - The tool's settled labels are back to Viterbi over the readings with the declared segment length (the
   constant-hazard transition of HANDOFF question 2). README results restored. The held-out numbers in the
   previous entry stand as an experiment, not as a method.
+
+**2026-11-26 · Emissions derived from the readings, transitions estimated from them**
+- Declared in `docs/TEST_SUITE.md` before scoring. Command: `uv run python -I
+  experiments/estimated_transitions.py > results/estimated_transitions.md`
+- Method (`settle.estimate_transition`, `evidence_from_readings`, `smoothed_estimated`): the readings are
+  running estimates P(state | text so far), so they are the forward half of the HMM, not its emissions. The
+  transition table is estimated from the readings alone, with no labels, by the filtered form of the
+  Baum-Welch transition update repeated to a fixed point. Each token's evidence is reading_t / (reading_{t-1} A).
+  The backward pass with the same table completes forward-backward; each token takes its likeliest state.
+  Posterior decoding replaced Viterbi here: on one tuning stream Viterbi over the derived evidence scored 0.655
+  against 0.934, because Viterbi picks one whole path and the per-token evidence is weak.
+- Result, current settled labels → estimated table (start value 0.5 / 0.9 / 0.99 changes nothing):
+  - AG News (seed 2): accuracy 0.874 → 0.899, placed within 16 tokens 10 → 12 of 18, false switches 2.4 →
+    1.8 per 1k; estimated stay probability per token 0.990
+  - IMDB (seed 2): 0.809 → 0.828, 5 → 7 of 15, 2.4 → 2.4; stay 0.992
+  - PubMed abstracts 31–60: 0.776 → 0.804, 63 → 68 of 95, 4.9 → 5.4; stay 0.952 (about 21 tokens per
+    segment; the true median sentence is 30)
+  - WikiSection (seed 2, 10 states): 0.655 → 0.627, 5 → 7 of 11, 5.3 → 9.1; stay 0.947
+  - single-state streams (seed 1): 0.468 → 0.376, false switches 7.2 → 10.7; stay 0.911
+- Conclusion: with no setting tuned against labels, it beats the current decoding on news topics, review
+  sentiment and abstracts. It loses where the table has many entries to estimate from few switches (10
+  states) and where readings wander with no real switch (single-state streams): the estimated table follows
+  the readings' own movement, so noisy readings yield a table that switches often. Not yet the tool's default.
