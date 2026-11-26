@@ -745,3 +745,15 @@ given in this repository's layout and reproduce from the same code.
   sentiment and abstracts. It loses where the table has many entries to estimate from few switches (10
   states) and where readings wander with no real switch (single-state streams): the estimated table follows
   the readings' own movement, so noisy readings yield a table that switches often. Not yet the tool's default.
+
+**2026-11-26 · Autoregressive HMM over the readings (offline)**
+- Declared in `docs/TEST_SUITE.md` before scoring. Command: `uv run python -I experiments/ar_hmm.py >
+  results/ar_hmm.md`
+- Setup: observation = the reading's centred log-ratios; emission o_t = c_k + φ·o_{t−1} + Gaussian noise
+  (switching intercept, order 1); c, φ, noise and the transition table learned per stream by EM, no labels.
+- Result: worse on every set. False switches rise from 2–7 to 75–250 per 1k tokens; accuracy falls 1–6
+  points (AG News seed 2 0.874 → 0.861, PubMed 0.776 → 0.752, single-state streams 0.468 → 0.357). EM learns
+  a carry-over φ of 0.8–0.9 and a stay probability of 0.38–0.91 per token.
+- Conclusion: with φ near 0.9, the state enters each observation only through the small intercept, so the
+  fitted states explain the token-to-token noise of the readings rather than the text's regimes, and they
+  switch every few tokens. The switching-intercept form makes the states describe changes, not levels.
