@@ -39,7 +39,7 @@ STATES = {
 }
 
 
-def load(split="clinicalnlp_taskB_test1", n=10):
+def load(split="clinicalnlp_taskB_test1", n=10, joiner="\n"):
     csv.field_size_limit(10**9)
     names = list(STATES)
     out = []
@@ -52,8 +52,8 @@ def load(split="clinicalnlp_taskB_test1", n=10):
         for who, said in turns:
             if not said:
                 continue
-            start = len(text) + (1 if text else 0)
-            text = (text + "\n" + said) if text else said
+            start = len(text) + (len(joiner) if text else 0)
+            text = (text + joiner + said) if text else said
             g = names.index(who)
             if spans and spans[-1][2] == g:
                 spans[-1] = (spans[-1][0], len(text), g)

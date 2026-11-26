@@ -562,3 +562,19 @@ given in this repository's layout and reproduce from the same code.
   - time to notice 7.7 → 3.7 tokens
   - spurious per 1k 0.7 → 0.6
 - Conclusion: confirmed on held-out conversations. Available as `--target line` (off by default).
+
+**2026-11-26 · Conversations without line breaks (stopped; speaker work parked)**
+- Command: `H2O_LIGHTNING_PATH=<checkout> uv run python -I experiments/aci_unsegmented.py run` (stopped
+  after the first version), then `... report`
+- Setup: ACI-Bench test encounters 31–38 joined with spaces, so speaker changes are not marked by line
+  breaks (the text has no punctuation either); the current question, a reading every 4th token, settled labels.
+- Result (8 encounters, 10,502 tokens, 355 speaker changes): token accuracy 0.793; labelling every token
+  "doctor" scores 0.734. 67 of 355 changes placed within 16 tokens; time to notice 11 tokens. The
+  comparison with line breaks was not run.
+- Majority-state accuracy of earlier conversation samples: 0.729 (held-out encounters 11–20, reported
+  0.87) and 0.67 (encounters 21–30).
+- Conclusion: in all earlier conversation runs each turn was one line, so the boundaries were given and
+  only the speaker was inferred. Without that, the gain over always answering "doctor" is 6 points.
+  Speaker turns (median 12 tokens) are not the state changes this tool is for; this line of work stops
+  here, and evaluation returns to HANDOFF task 5 (labelled documents joined into streams, several
+  unrelated state lists).

@@ -48,6 +48,8 @@ Judging (revised 2026-11-25, before the held-out samples are scored): the output
 
 Targeted question, held-out check (declared 2026-11-26, before the run): ACI-Bench clinicalnlp_taskB_test1 two-speaker encounters 21-30, the current question against R2 (the current line as its own part of the record, a direct question, neutral option names), both read every 4th token by H2O-Lightning-4B and judged on settled labels (`experiments/ask_heldout.py`).
 
+Conversations without line breaks (declared 2026-11-26, before the run): in the ACI-Bench streams each turn is one line, so every switch falls on a line break and the task reduces to classifying lines. To test segmentation, ACI-Bench clinicalnlp_taskB_test1 two-speaker encounters 31-38 are joined into continuous text (turns separated by one space) and read with the current question; the same encounters with line breaks are the comparison. H2O-Lightning-4B, a reading every 4th token, settled labels (`experiments/aci_unsegmented.py`).
+
 Windowed likelihood emissions (HANDOFF Q3 extended, added 2026-11-25): W = 0.0625 x declared segment length (S3: 2 tokens, S1: 12 tokens), hop W/2, sticky forward filter with eta = 1 and switch probability 1/L. Chosen before scored runs by mean committed accuracy over the tuning sets (first 10 PubMed 20k RCT dev abstracts; 2 WikiSection en_disease validation streams), from 0.0625 / 0.125 / 0.25 / 0.5 / 1 / 2 x and no window (`eval/exp_window.py`). The same W applies to the windowed question method (experiment E).
 
 ## Sets
