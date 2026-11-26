@@ -8,8 +8,8 @@ its pre-registration rules are in `docs/TEST_SUITE.md`.
 **Status (2026-11-25): run on PubMed dev and S1; results in `results/evidence_table.md`,
 `results/windowed_asking.md`, `results/activation_directions.md` and `docs/LOG.md`.** Follow-ups the
 results call for:
-- Test the distilled directions (3b) where regimes recur (WikiSection validation streams) and on S1,
-  and on more than 5 held-out abstracts.
+- Done 2026-11-25 (`docs/LOG.md`): the distilled directions (3b) on 30 more PubMed abstracts, on
+  WikiSection streams where states recur, and on S1. They did not generalise; asking stays the sensor.
 - Reduce 3b's spurious switches (19 per 1k) with the decoder: persist, fixed-lag Viterbi, or combining
   3b with occasional asked readings as evidence rather than replacing one with the other.
 - Decide whether fitting directions per regime set, without gold labels, is acceptable as zero-shot.

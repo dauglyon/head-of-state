@@ -26,8 +26,9 @@ problem.
 Known limits: switches are detected late (raw readings turn about 16 tokens after a true switch on
 PubMed abstracts); showing the question only the last 30–120 tokens does not shorten this, so the lag
 is not caused by earlier history. Readouts built on next-token likelihood have been weaker throughout.
-A cheaper sensor, activation directions distilled from the asked readings, scored 0.82 token accuracy
-with an 8-token delay at 0.5 ms per token on 5 held-out PubMed abstracts (preliminary; see `docs/LOG.md`).
+Activation directions distilled from the asked readings cost 0.5 ms per token but generalise poorly:
+0.73–0.76 token accuracy on 30 further PubMed abstracts, 0.31 on WikiSection disease sections (asking:
+0.60). Fused with asking every 8th token they reached 0.79 on PubMed at about 15 ms per token (`docs/LOG.md`).
 
 ## Run the demo
 

@@ -280,3 +280,27 @@ given in this repository's layout and reproduce from the same code.
   The sample is small (5 held-out abstracts), the directions are fitted per regime set without gold
   labels (a departure from the original brief), and they have not yet been tested where regimes
   recur or on S1.
+
+**2026-11-25 · Distilled activation directions on more data and where states recur**
+- Commands: `uv run python -I experiments/distilled_directions.py run`, then `... report` →
+  `results/distilled_directions.md`
+- Setup: the Path 3 settings, unchanged (layer 24, each token's own activation, difference of means,
+  warm-up labels from the running-prior filter over asked readings).
+- Result, PubMed dev abstracts 11–40 (97 switches), directions fitted on asked labels of abstracts 1–10:
+  - Distilled directions: 0.734–0.756 accuracy, 17–20-token delay, 11–23 spurious per 1k.
+  - Asking every 8th token alone: 0.694 accuracy, 34.5-token delay.
+  - Both fused in one filter: 0.790 accuracy, 13.5-token delay, 29 spurious per 1k, at about 15 ms
+    per token.
+- Result, WikiSection validation streams 3–6 (10 states, recurring), directions fitted on asked labels
+  of streams 0–2:
+  - Distilled directions: 0.28–0.33 accuracy.
+  - Asking alone (every 2nd token): 0.599.
+  - Fused: 0.556–0.582.
+- Result, S1 lag streams (directions fitted on WikiSection validation):
+  - Distilled directions: 0.702 accuracy, 13.3-token delay, 30 spurious per 1k.
+  - Full-history asking: 0.879, 23.7 tokens, 2.9 per 1k.
+  - The distilled delay does not grow with history (19 / 5 / 23 / 6 tokens).
+- Conclusion: the earlier 0.82 on 5 held-out abstracts did not hold up. Distilled directions are fast
+  and react sooner, but they generalise poorly, and with 10 similar states they fail. Asking stays the
+  per-token sensor. Directions are worth keeping only as a supplement fused with sparse asking, and
+  only on state sets where they carry signal (here PubMed).
