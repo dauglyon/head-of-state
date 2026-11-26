@@ -803,3 +803,68 @@ given in this repository's layout and reproduce from the same code.
     treatment, and half of a prognosis section is labelled mechanism.
 - Conclusion: better than the question readout on news topics on every stream; worse on disease sections, where
   the first stream's gain did not hold. Related section types change the next word in overlapping ways.
+
+**2026-11-26 · Decoder with an estimated reading weight, re-run; restart-at-the-switch upper bound (question readout)**
+- Commands: `uv run python -I experiments/tied_target_hmm.py > results/tied_target_hmm.md`; `uv run python -I
+  experiments/joined_inertia.py run --seed 2` (GPU), then `uv run python -I experiments/restart_bound.py [--seed 2]`
+  → `results/restart_bound[_seed2].md`
+- Both work on the Jev-style readout, before the owner restated the method (next entries).
+- The tied-target decoder (readings as observations, reading weight from the stream's own spread and
+  autocorrelation, η 0.07–0.41) reproduces a sub-agent's numbers exactly. Paired by segment (statistics by a
+  second session): false switches fall by 1.6 per 1,000 tokens [1.0, 2.2]; token accuracy +1.9 points [−0.7, +4.2]
+  over four confirmation sets, not established. It is the current decoder at a higher switch cost chosen per
+  stream, and lies on the current decoder's own trade-off curve.
+- Restarting the reading at the true switch (the first 128 tokens of each new segment read with nothing before
+  them), an upper bound: seed 0 news 0.865 → 0.920, disease sections 0.683 → 0.695, reviews 0.889 → 0.978; seed 2
+  0.874 → 0.934, 0.655 → 0.688, 0.809 → 0.850. A reader restarted by the live decision was started and stopped
+  after 3 of 9 streams when the method was restated; not scored.
+
+**2026-11-26 · Test sets from prior work: Switchboard acts, WikiSection articles, NewsDiscourse, TRIPOD**
+- Chosen by a second session the owner delegated the choice to: states published as holding over a stretch and
+  switching, from named classes; access requirements reported, not used to exclude. LinCE (word-level language)
+  waits for the owner to obtain it: its Hugging Face copy is a loader that fetches the data through another
+  account's access link, which is not used.
+- Loaders: `experiments/swda.py` (Switchboard dialogue acts, GPL-2.0; acts collapsed as the corpus code does; 7
+  acts with at least 2% of training utterances plus other; speaker letter only at a change of speaker),
+  `experiments/tripod.py` (TRIPOD synopses; six stages between the five turning points; a turning-point sentence
+  opens the stage after it, decided before any run), `experiments/newsdiscourse.py` (9 sentence roles), and
+  WikiSection whole articles with the 10 merged groups. Downloads in `experiments/data/download.sh`.
+- Declared lengths, measured on training data before any reading (`experiments/stated_sets.py measure`): articles
+  184 tokens, acts 9, story stages 124, news roles 42. Protocol: a tuning sample for the go / no-go checks, then
+  12 unread documents per set for confirmation.
+
+**2026-11-26 · Next-token emissions on the four tuning samples; the catalogue form**
+- Commands: `H2O_LIGHTNING_PATH=<checkout> uv run python -I experiments/stated_sets.py run --set <set> --sample
+  tuning [--form catalogue]`, then `... report --sample tuning` → `results/stated_sets_tuning.md`
+- Instruction form (each branch "This part of the text is <description>. What word comes next?"), token accuracy
+  of settled labels pooled over the tuning documents (always the most common state in brackets):
+  - WikiSection articles (3): 0.587 (0.228); evidence for the true state 0.68 nats per token. Go.
+  - Switchboard acts (2 conversations): 0.119 (0.639); opinion takes 83% of labels. No-go.
+  - NewsDiscourse (3 articles): 0.059 (0.478); main event takes 84% of labels. No-go.
+  - TRIPOD (3 synopses): 0.215 (0.231); final push takes 89% of labels. No-go.
+  - Evidence per token splits by kind of state: topics and sections 0.62–0.74 nats; sentiment, dialogue acts,
+    sentence roles and story stages 0.03–0.11.
+- Cause of the takeovers: a description tells the model what kind of text this is as well as which state, so one
+  state's description raises the probability of all text, and that differs between states. Catalogue form
+  (`head_of_state.next_token`, form "catalogue"): every state's name and description listed once at the start of
+  the cache, each branch naming only its state; the list names no state, so emissions still depend only on the
+  current state and the text. Branches are 26–28 tokens, cost 170–213 ms per token against 279.
+  - Switchboard: 0.119 → 0.587, +46.8 points [+32.2, +58.9] by act run; still below always-statement (0.639).
+  - WikiSection articles: 0.587 → 0.674 [+8.7 points, −2.6 to +19.1], not established on 3 articles; symptom's
+    share of labels 44% → 26% (true 18%).
+  - NewsDiscourse: 0.059 → 0.241; no state takes over, still far below 0.478.
+  - TRIPOD: first synopsis only so far, 0.175; final push still takes 90%.
+- A normalisation by each state's expected log-probability under the plain prediction (the Fast-DetectGPT
+  statistic) removed the lift but more of the signal; accuracy fell on both sets tried. Withdrawn.
+- The owner: "Catalogue is a clear improvement yup".
+- Conclusion: the catalogue form removes most of the takeover by one state. On states about what the text is
+  doing, the per-token evidence stays small. The question readout on the same tuning documents (queued) will show
+  whether that is the next-token form or what the model knows.
+
+**2026-11-26 · News confirmation declared (not yet run)**
+- `experiments/news_confirm.py`: 12 new news streams of about 1,000 tokens (13,088 tokens, 36 switches), seed 3,
+  from AG News test documents in neither the seed-0 nor the seed-2 streams. Three readouts on the same streams:
+  the question readout, the next-token instruction form and the catalogue form. Declared before any data: primary
+  comparison catalogue against the question readout; secondary, instruction against the question readout and
+  catalogue against instruction; paired over the 12 streams, exact sign-flip test, interval by resampling streams.
+  The catalogue form is checked on the three seed-0 news streams first.

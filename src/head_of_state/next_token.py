@@ -20,6 +20,12 @@ Two forms of the branch:
   word's first token). A chat answer writes a word with or without its leading
   space, so the emission is the probability of the token plus that of its other spacing (when that is a
   single token); the same mapping is used for every state.
+- "catalogue": the instruction form with every state's name and description listed once at the start of the
+  cache ("The text below is made of parts of these kinds: ..."), and each branch naming only its state ("This
+  part of the text is <name>. What word comes next?"). A description tells the model what kind of text this is as
+  well as which state, and that differs between descriptions, so it does not cancel between states; listing all
+  of them once gives every branch the same information, and the branches differ only in the state they name.
+  The catalogue names no particular state, so the emission still depends only on the current state and the text.
 - "bracket": plain text after the document separator, branch " [name: description]" (kept for comparison).
 The plain next-token probability (no branch) is kept beside the K emissions.
 """
@@ -34,6 +40,8 @@ from .reader import StreamStateReader
 STATEMENT = " [{name}: {description}]"
 INSTRUCTION = "\n\nThis part of the text is {description}. What word comes next?"
 PREFILL = "Next word:"
+CATALOGUE_HEAD = "The text below is made of parts of these kinds:\n{kinds}\n\nText:\n"
+CATALOGUE_BRANCH = "\n\nThis part of the text is {name}. What word comes next?"
 _SPLIT = "\u241eSTREAM\u241e"
 
 
@@ -52,12 +60,15 @@ class StatedNextTokenReader(StreamStateReader):
         self.names = list(self.states)
         self.K = len(self.names)
         self.rotations, self.shifts = 1, [0]
-        if self.form == "instruction":
-            text = self.tok.apply_chat_template([{"role": "user", "content": "Text:\n" + _SPLIT}], tokenize=False,
+        if self.form in ("instruction", "catalogue"):
+            opening = "Text:\n" if self.form == "instruction" else CATALOGUE_HEAD.format(
+                kinds="\n".join(f"- {n}: {d}" for n, d in self.states.items()))
+            text = self.tok.apply_chat_template([{"role": "user", "content": opening + _SPLIT}], tokenize=False,
                                                 add_generation_prompt=True, enable_thinking=False)
             head, rest = text.split(_SPLIT)
             self.head_ids = self._enc(head)
-            self.branches = [self._enc(INSTRUCTION.format(name=n, description=d) + rest + PREFILL)
+            ask = INSTRUCTION if self.form == "instruction" else CATALOGUE_BRANCH
+            self.branches = [self._enc(ask.format(name=n, description=d) + rest + PREFILL)
                              for n, d in self.states.items()]
         else:
             sep = self.tok.convert_tokens_to_ids("<|endoftext|>")
@@ -68,7 +79,7 @@ class StatedNextTokenReader(StreamStateReader):
 
     def _targets(self, tid: int) -> list[int]:
         """The token, plus the same text with the other leading-space choice when that is one token."""
-        if self.form != "instruction":
+        if self.form == "bracket":
             return [tid]
         if tid not in self._other_spacing:
             t = self.tok.decode([tid])
@@ -85,17 +96,25 @@ class StatedNextTokenReader(StreamStateReader):
     @torch.no_grad()
     def emissions(self, ids: list[int]):
         """Per token t >= 1 (0-based): log P(ids[t] | ids[:t], state k) for each k, and the plain
-        log P(ids[t] | ids[:t]). Returns (state_logp [T-1, K], plain_logp [T-1])."""
+        log P(ids[t] | ids[:t]). Returns (state_logp [T-1, K], plain_logp [T-1]). Also sets self.extra:
+        state_explogp and state_varlogp [T-1, K], the mean and variance of log P(x | ids[:t], state k) for x drawn
+        from the plain prediction (the reference of the Fast-DetectGPT statistic)."""
         self.reset()
         state_lp, plain_lp = [], []
+        self.extra = {"state_explogp": [], "state_varlogp": []}
         for t in range(len(ids) - 1):
             self._feed([ids[t]])
             self.stream.append(ids[t])
             nxt = ids[t + 1]
-            plain_lp.append(float(torch.log_softmax(self.last_logits, -1)[nxt]))
-            rows = self._branch_all()
+            plain = torch.log_softmax(self.last_logits, -1)
+            plain_lp.append(float(plain[nxt]))
+            rows = torch.log_softmax(torch.stack(self._branch_all()), -1).clamp_min(-1e4)   # [K, vocab]
             tg = self._targets(nxt)
-            state_lp.append([float(torch.logsumexp(torch.log_softmax(r, -1)[tg], 0)) for r in rows])
+            state_lp.append(torch.logsumexp(rows[:, tg], 1).tolist())
+            w = plain.exp()
+            m = rows @ w
+            self.extra["state_explogp"].append(m.tolist())
+            self.extra["state_varlogp"].append(((rows ** 2) @ w - m ** 2).tolist())
             if self.n_cached + max(len(b) for b in self.branches) + 1 > self.max_ctx:
                 raise RuntimeError("stream longer than max_ctx; re-anchoring is not implemented here")
         return state_lp, plain_lp

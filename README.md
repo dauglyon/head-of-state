@@ -26,6 +26,13 @@ segments start where the new state began rather than where it was noticed. The d
 H2O-Lightning-4B, an open-weights Qwen3.5-4B fine-tuned to answer choice questions about a record; other
 open-weights causal language models work through `--model`.
 
+A Jev-style reading gives the probability of each state given the text so far. The method's intended
+emission is a different quantity: the probability the head gives the token that actually comes next, once
+for each state. At every token, one temporary branch per state asks "This part of the text is <state>. What
+word comes next?", with every state's name and description listed once at the start of the text; the K
+probabilities of the actual next token are that token's emissions for the decoder. This is implemented in
+`head_of_state.next_token` and is under evaluation; the command-line tool still uses the Jev-style readout.
+
 **Status: early prototype, with no settled use case yet.** Descriptions of problems that resemble this
 one are welcome in the issue tracker.
 
@@ -61,6 +68,14 @@ Known limits:
 - **Cost.** About 100 ms per token when reading every token (150 ms with 10 states). Reading every 8th
   token (`--stride 8 --persist 1`) is about 7 times cheaper; its labels are assigned to the 8 tokens before
   each reading.
+
+Next-token emissions, tuning stage (not yet confirmed on unread data):
+- **News topics:** 0.929 token accuracy against 0.865 for the Jev-style readout on the same 3 tuning
+  streams; 12 unread streams are next, with the comparison declared beforehand.
+- **Test sets from prior work** (tuning documents only): section types in whole WikiSection articles 0.67
+  against 0.23 for always the most common state. For states about what the text is doing (Switchboard
+  dialogue acts, NewsDiscourse sentence roles, TRIPOD story stages) each token carries little evidence, and
+  labels stay at or below always the most common state.
 
 Earlier exploratory, tuning and comparison runs (other models, readouts, decoders and settings) are in
 `docs/LOG.md`, with an audit of the scoring and its corrections.

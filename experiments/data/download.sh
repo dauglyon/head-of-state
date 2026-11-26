@@ -4,6 +4,9 @@
 #   WikiSection     (github.com/sebastianarnold/WikiSection, CC BY-SA 3.0): en_disease and en_city JSON
 #   ACI-Bench       (github.com/wyim/aci-bench, CC BY 4.0): doctor-patient dialogues, challenge-data CSVs
 #   AG News, IMDB   (Hugging Face fancyzhx/ag_news, stanfordnlp/imdb): test splits, converted to JSON lines
+#   SwDA            (github.com/cgpotts/swda, GPL-2.0): Switchboard dialogue-act transcripts
+#   TRIPOD          (github.com/ppapalampidi/TRIPOD, no licence stated): synopses with turning points
+#   NewsDiscourse   (ACL 2020 dataset attachment, no licence stated): news sentences with discourse roles
 set -euo pipefail
 mkdir -p data/pubmed-rct data/wikisection
 for s in train dev test; do
@@ -34,4 +37,15 @@ with open(sys.argv[2], "w") as f:
         f.write(json.dumps(row) + "\n")' "data/$d/test.parquet" "data/$d/test.jsonl"
   rm "data/$d/test.parquet"
 done
+mkdir -p data/swda data/tripod data/newsdiscourse
+curl -sfL -o data/swda/swda.zip https://github.com/cgpotts/swda/raw/master/swda.zip
+(cd data/swda && unzip -q -o swda.zip && rm -rf swda.zip __MACOSX)
+for s in train test; do
+  curl -sfL -o "data/tripod/TRIPOD_synopses_$s.csv" \
+    "https://raw.githubusercontent.com/ppapalampidi/TRIPOD/master/Synopses_and_annotations/TRIPOD_synopses_$s.csv"
+done
+curl -sfL -o data/newsdiscourse/nd.zip https://aclanthology.org/attachments/2020.acl-main.478.Dataset.zip
+(cd data/newsdiscourse && unzip -q -o nd.zip && rm -rf nd.zip __MACOSX && mv "NewsDiscourse 2" raw && cd raw \
+  && for s in train validation test; do unzip -q -o "$s.zip" && rm "$s.zip"; done && rm -rf __MACOSX .DS_Store \
+  && { [ -d "train 2" ] && mv "train 2" train || true; })
 echo "datasets in ./data"

@@ -34,7 +34,7 @@ import joined_documents as jd  # noqa: E402
 MODELS = {"h2o": os.environ.get("H2O_LIGHTNING_PATH", "h2oai/h2o-lightning-4b"), "qwen": "Qwen/Qwen3.5-4B"}
 
 
-FORMS = ("instruction", "bracket")
+FORMS = ("instruction", "catalogue", "bracket")
 
 
 PARTS = {"first": [0], "rest": [1, 2]}   # which seed-0 streams of each list
