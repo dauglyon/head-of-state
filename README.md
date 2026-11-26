@@ -31,29 +31,36 @@ one are welcome in the issue tracker.
 
 ## Results so far
 
-Held-out samples, read at every token by H2O-Lightning-4B on one 12 GB GPU (about 100 ms per token). The
-model, settings and judging rule were fixed before these samples were run (`docs/TEST_SUITE.md`). Labels are
-judged after the decoder has corrected them (settled labels). Time to notice is how many tokens after a true
-switch the live output first shows the new state; a stream read left to right cannot know sooner, so it is
-reported and not counted as error.
+Streams built by joining labelled documents end to end with single spaces (the evaluation in
+`docs/HANDOFF.md`), so every token has a known state and nothing in the formatting marks a switch. Three
+unrelated state lists, 3 streams of about 2,000 tokens each, built from documents not used while the
+judging rule was chosen. Read at every token by H2O-Lightning-4B on one 12 GB GPU. Labels are judged after
+Viterbi has corrected them (settled labels). Time to notice is how many tokens after a true switch the live
+output first shows the new state; a stream read left to right cannot know sooner, so it is reported and
+not counted as error.
 
-| Data (held-out sample) | Token accuracy | Switches placed within 16 tokens | False switches per 1,000 tokens | Time to notice |
-|---|---|---|---|---|
-| PubMed 20k RCT abstracts, test (30 abstracts, 5 states) | 0.79 | 63 of 95 | 4.5 | 23 tokens |
-| Doctor–patient conversations, ACI-Bench test (10 encounters, 2 speaker states) | 0.87 | 199 of 476 | 0.7 | 5 tokens |
-| Single-state streams, WikiSection disease articles (2 streams, 6,550 tokens) | 0.47 | — | 7.0 | — |
+| State list (documents) | Token accuracy | Always the most common state | Switches placed within 16 tokens | False switches per 1,000 tokens | Time to notice |
+|---|---|---|---|---|---|
+| News topics, 4 states (AG News articles) | 0.87 | 0.34 | 10 of 18 | 2.4 | 30 tokens |
+| Section types, 10 states (WikiSection disease article sections) | 0.66 | 0.30 | 5 of 11 | 5.3 | 92 tokens |
+| Sentiment, 2 states (IMDB reviews) | 0.81 | 0.67 | 5 of 15 | 2.4 | 55 tokens |
+
+On natural documents, 30 held-out PubMed abstracts with 5 section states, token accuracy is 0.78 against
+0.41 for always the most common state. On streams that stay in one state the whole time, 7 false switches
+per 1,000 tokens.
 
 Known limits:
-- **Short segments are missed.** Most conversational turns are short (median 12 tokens), and the turn often
-  ends before the model can tell it apart; 58% of turn changes are missed. Asking about the current line as its
-  own part of the record (`--target line`) raised the share placed within 16 tokens from 33% to 67% on 10 fresh
-  conversations, read every 4th token.
-- **Related states are confused.** In the single-state streams, "symptom" and "cause" sections are often read
-  as epidemiology or mechanism, so the true state holds for under half of the tokens.
-- **Time to notice depends on the text.** Speaker changes show within about 5 tokens; a new section of an
-  abstract takes about 23 tokens, most of a sentence.
-- **Cost.** About 100 ms per token when reading every token. Reading every 8th token (`--stride 8 --persist 1`)
-  is about 7 times cheaper; its labels are assigned to the 8 tokens before each reading.
+- **Switches are placed late.** Viterbi moves a switch back only as far as the readings allow, and the
+  readings name the new state only once its text shows it: a median 17 tokens late for news topics, 11 for
+  reviews and 79 for disease-article sections.
+- **The earlier text holds the readings back.** In the streams used to choose the judging rule, the first
+  8 tokens of a new news article, read alone, give its topic 0.76 probability; read after the previous
+  article, 0.46. Reviews: 0.65 against 0.34.
+- **Related states are confused.** Disease-article section types are the weakest list (0.66): a third of
+  the tokens in symptom sections are labelled prognosis.
+- **Cost.** About 100 ms per token when reading every token (150 ms with 10 states). Reading every 8th
+  token (`--stride 8 --persist 1`) is about 7 times cheaper; its labels are assigned to the 8 tokens before
+  each reading.
 
 Earlier exploratory, tuning and comparison runs (other models, readouts, decoders and settings) are in
 `docs/LOG.md`, with an audit of the scoring and its corrections.
