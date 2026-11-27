@@ -921,3 +921,16 @@ given in this repository's layout and reproduce from the same code.
   That claim had no grounds and is withdrawn: the state text after the stream, read at its end, is the design, and
   the catalogue form is its best-performing version so far. Measured, and still to be explained: the branches lose
   4–6 nats against the plain prediction, 7–8.5 nats on word pieces against about 2 on word starts.
+
+**2026-11-26 · What the head predicts at the read position (catalogue form)**
+- Command: a one-off script (not committed) on the first seed-0 news stream, H2O-Lightning-4B, catalogue form: at
+  24 sampled positions (12 before a word start, 12 before a word piece), the actual next token's rank under the
+  plain prediction and under the true state's branch, and each branch's top tokens.
+- Result: at the end of the branch the head's top tokens are the same few at every position whatever the text: a
+  space, quote marks, commas, dashes, full stops, "?", and words from the state names and descriptions (" news",
+  " war", " politics", " markets", " talks"). The actual next token's median rank is 229 before a word start
+  (plain prediction: 16) and 54,680 before a word piece (plain: 1). Examples: "Yudhoy" → "ono" is rank 1 under the
+  plain prediction and 45,493 under the true state's branch; "Association" → " of", 1 and 30.
+- Conclusion: at the read position the head does not predict the text's next token; it predicts the start of an
+  answer. The differences between states that carried the news-topic result come from how strongly each token is
+  associated with a state's name and description in that answer distribution, not from a prediction of the text.
