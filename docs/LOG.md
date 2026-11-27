@@ -1103,3 +1103,9 @@ given in this repository's layout and reproduce from the same code.
   the pattern of every text-predicting form run on 2026-11-26. The reply slot and the question readout decode well
   because they are not such conditionals: each restates the state evidence at every token, and the decoder counts it
   again at each one.
+- Check on the screen files (one-off script): per true segment, the true state's summed log-probability minus the best
+  other state's, against the switch cost log(L (K - 1)) (6.7 / 7.4 / 4.8 nats for news / article / PubMed). Median
+  lead and share of segments above the cost: per-state caches, H2O-Lightning +1.7 (12% of 8) / +0.4 (14% of 7) / -3.9
+  (0% of 33); per-state caches, Qwen3.5-4B-Base -0.2 / -0.6 / -0.2 (0% on all); thinking block with repeat,
+  H2O-Lightning +1.6 (25%) / -19.5 (0%) / -1.2 (27%); the reply slot +111.5 (75%) / +45.2 (86%) / -8.9 (30%). The
+  text-predicting emissions lead by a nat or two per segment, below the cost of a switch; the reply slot by a hundred.
