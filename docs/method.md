@@ -32,12 +32,8 @@ the forward filter, smoother and Viterbi apply as printed, and the product of em
 likelihood of the text under a state path, provided each emission is the model's prediction of the text's own
 continuation.
 
-**Known flaw of this form.** The branch puts its question between the stream and the token being predicted, so
-the head predicts what follows "Next word:", not what continues the text; where the stream is mid-sentence or
-mid-word, the actual next token is unlikely after the question under every state. The branches lose 4–6 nats
-against the plain next-token prediction. That loss is not a constant shared factor: on tokens every branch rules
-out, the ratios between states carry little but noise. A form that keeps the predicted token a continuation of
-the text, with the state stated before the text it conditions, is being designed (`docs/LOG.md`).
+The branches lose 4–6 nats against the plain next-token prediction, 7–8.5 on word pieces against about 2 on
+word starts (a second session's measurement); what the head predicts at the read position is being examined.
 
 Why the list of states goes at the start: a description tells the model what kind of text this is as well as
 which state. When each branch carried its own description ("This part of the text is <description>. What word

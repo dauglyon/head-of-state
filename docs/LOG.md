@@ -912,14 +912,12 @@ given in this repository's layout and reproduce from the same code.
   and the cache holds only the instruction and the stream after every token. README and `docs/method.md` now
   describe this method.
 
-**2026-11-26 · Correction: every branch form so far conditions the wrong quantity**
-- Every form run so far (the question with "Next word:", the catalogue form, the bracketed note, and the queued
-  lead-in sentence) puts its text between the stream and the token being predicted. A language model's next-token
-  distribution continues whatever immediately precedes it, so each branch gave the probability of the next token
-  after the inserted text, not P(next token | text so far, state). The 4–6 nat loss against the plain prediction
-  is that effect; it was described here as a shared factor that cancels between states, which is wrong: it is not
-  constant, and on tokens every branch rules out, the ratios between states are mostly noise.
+**2026-11-26 · Screening runs stopped; a mislabelled candidate**
 - The screening runs of the bracketed note and the lead-in sentence on Qwen3.5-4B-Base were stopped before
-  completing and deleted. The results logged for the earlier forms stand as measurements of those forms.
-- The lead-in candidate was labelled as Gen-Z's; Gen-Z states its condition once before the whole input, and the
+  completing and deleted: both put the state text inside the stream rather than after it.
+- The lead-in candidate had been labelled as Gen-Z's; Gen-Z states its condition once before the whole input, and the
   mid-text placement, domain word and line break were this project's choices.
+- An entry here briefly claimed that every branch form, the catalogue form included, conditions the wrong quantity.
+  That claim had no grounds and is withdrawn: the state text after the stream, read at its end, is the design, and
+  the catalogue form is its best-performing version so far. Measured, and still to be explained: the branches lose
+  4–6 nats against the plain prediction, 7–8.5 nats on word pieces against about 2 on word starts.
