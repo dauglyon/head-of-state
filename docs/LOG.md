@@ -1062,3 +1062,14 @@ given in this repository's layout and reproduce from the same code.
   → 0.279.
 - Conclusion: re-estimation reinforces the first decoding; from starting labels at 0.2–0.5 accuracy the counts are
   mostly wrong too, so it does not lift a weak emission. It could only refine one that already decodes well.
+
+**2026-11-27 · Per-state words learned from the reply slot's decoding: trial**
+- One-off script (not committed): forward-backward posteriors from the reply slot read at every token (ref-instruction,
+  H2O-Lightning) give each state's expected token counts on its own stream; per-state unigram distributions are those
+  counts with a description-based prior (the Gen-Z passages or the reply slot once per state) worth one declared
+  segment, each token's own count left out.
+- Token accuracy (news / article / PubMed): the reply slot 0.916 / 0.709 / 0.526; the learned unigrams alone 0.721–0.831
+  / 0.550–0.570 / 0.450–0.464; the reply slot plus the learned unigrams 0.828–0.874 / 0.555–0.595 / 0.530–0.547.
+- Conclusion: from good starting labels the learned word distributions are far better than ones built from the
+  descriptions (0.48–0.54 on news), but below the reply slot itself; adding them to it counts the same evidence twice
+  and does not help.
