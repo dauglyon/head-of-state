@@ -53,3 +53,19 @@ assert e.shape == (len(ids), len(names)) and np.allclose(e.sum(1), 1)
 assert len(online_labels(e, pos, 30.0)) == len(ids) and len(settled_labels(e, pos, 30.0)) == len(ids)
 print("decoder gives one live and one settled label per token")
 print("all next-token mechanics tests passed")
+
+# Per-state caches: each state's emission equals a full recompute of its head plus the stream so far.
+from head_of_state.next_token import PerStateCacheReader
+tok.add_special_tokens({"additional_special_tokens": []})
+ps = PerStateCacheReader(model, tok, DEMO_STATES)
+lp, plain = ps.emissions(ids)
+worst = 0.0
+with torch.no_grad():
+    for t_ in (10, 35, 57):
+        for k, h in enumerate(ps.heads):
+            x = torch.tensor([h + ids[:t_ + 1]])
+            ref = float(torch.log_softmax(model(input_ids=x).logits[0, -1].float(), -1)[ids[t_ + 1]])
+            got = lp[t_][k] if k < len(lp[t_]) else plain[t_]
+            worst = max(worst, abs(ref - got))
+assert worst < 1e-4, f"per-state cache emission differs from full recompute by {worst}"
+print(f"per-state caches: emissions equal a full recompute (max diff {worst:.1e})")

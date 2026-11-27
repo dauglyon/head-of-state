@@ -49,6 +49,15 @@ _SPLIT = "\u241eSTREAM\u241e"
 class StatedNextTokenReader(StreamStateReader):
     form: str = "instruction"
     statement: str = STATEMENT
+    # A wording given in full, overriding `form` (used to screen wordings, experiments/wording_screen.py):
+    #   chat      True: the model's chat format, stream in the user turn; False: plain text
+    #   system    system message (chat only) or None
+    #   head      text before the stream; may contain {kinds} (one "- name: description" line per state)
+    #   branch    the temporary text after the stream for one state; {name} and {description}
+    #   answer    chat only: close the user turn and open the assistant turn after the branch (default True)
+    #   prefill   text after that (chat) or at the end of the branch (plain)
+    #   spacing   also count the actual token with its other leading-space choice (default: same as answer)
+    spec: dict | None = None
 
     def __post_init__(self):
         import inspect
@@ -60,7 +69,9 @@ class StatedNextTokenReader(StreamStateReader):
         self.names = list(self.states)
         self.K = len(self.names)
         self.rotations, self.shifts = 1, [0]
-        if self.form in ("instruction", "catalogue"):
+        if self.spec is not None:
+            self._from_spec(self.spec)
+        elif self.form in ("instruction", "catalogue"):
             opening = "Text:\n" if self.form == "instruction" else CATALOGUE_HEAD.format(
                 kinds="\n".join(f"- {n}: {d}" for n, d in self.states.items()))
             text = self.tok.apply_chat_template([{"role": "user", "content": opening + _SPLIT}], tokenize=False,
@@ -77,9 +88,29 @@ class StatedNextTokenReader(StreamStateReader):
         self._other_spacing = {}
         self.reset()
 
+    def _from_spec(self, sp: dict):
+        kinds = "\n".join(f"- {n}: {d}" for n, d in self.states.items())
+        head = sp.get("head", "").format(kinds=kinds)
+        prefill = sp.get("prefill", "")
+        if sp.get("chat", True):
+            msgs = ([{"role": "system", "content": sp["system"]}] if sp.get("system") else []) + \
+                   [{"role": "user", "content": head + _SPLIT}]
+            text = self.tok.apply_chat_template(msgs, tokenize=False, add_generation_prompt=True, enable_thinking=False)
+            before, rest = text.split(_SPLIT)
+            self.head_ids = self._enc(before)
+            tail = (rest + prefill) if sp.get("answer", True) else prefill
+        else:
+            sep = self.tok.convert_tokens_to_ids("<|endoftext|>")
+            self.head_ids = ([sep] if isinstance(sep, int) and sep >= 0 else []) + self._enc(head)
+            tail = prefill
+        self.branches = [self._enc(sp["branch"].format(name=n, description=d) + tail) for n, d in self.states.items()]
+        self._spacing = sp.get("spacing", sp.get("chat", True) and sp.get("answer", True))
+
     def _targets(self, tid: int) -> list[int]:
         """The token, plus the same text with the other leading-space choice when that is one token."""
-        if self.form == "bracket":
+        if self.spec is not None and not self._spacing:
+            return [tid]
+        if self.spec is None and self.form == "bracket":
             return [tid]
         if tid not in self._other_spacing:
             t = self.tok.decode([tid])
@@ -117,4 +148,67 @@ class StatedNextTokenReader(StreamStateReader):
             self.extra["state_varlogp"].append(((rows ** 2) @ w - m ** 2).tolist())
             if self.n_cached + max(len(b) for b in self.branches) + 1 > self.max_ctx:
                 raise RuntimeError("stream longer than max_ctx; re-anchoring is not implemented here")
+        return state_lp, plain_lp
+
+
+# The states listed, then the state of the end of the text (where the next token is predicted), directly before
+# the stream.
+PER_STATE_HEAD = ("The following text is written in stretches, and each stretch is in one of these states. The state "
+                  "can change from one stretch to the next.\n\nStates:\n{kinds}\n\n"
+                  "The end of the following text is in state: {name}\n\n")
+
+
+@dataclass
+class PerStateCacheReader:
+    """One key/value cache per state. Cache k opens with a sentence saying the text is written in stretches, each in
+    one of the listed states, the list ("States:", one "- name: description" line each) and "The end of the
+    following text is in state: <name>", then holds the stream as plain text; each stream token is fed once into every cache. The head's
+    distribution at the stream's last token of cache k is P(next token | text so far, state k): nothing follows the
+    stream, so the head predicts the text itself. A further cache opens with the list only and gives the plain
+    prediction. Same interface as StatedNextTokenReader.emissions."""
+    model: torch.nn.Module
+    tok: object
+    states: dict[str, str]
+    head: str = PER_STATE_HEAD
+    max_ctx: int = 8192
+
+    def __post_init__(self):
+        import inspect
+        self.model.eval()
+        self.dev = next(self.model.parameters()).device
+        self._cache_kw = "cache" if "cache" in inspect.signature(self.model.forward).parameters else "past_key_values"
+        self.names = list(self.states)
+        self.K = len(self.names)
+        kinds = "\n".join(f"- {n}: {d}" for n, d in self.states.items())
+        enc = lambda s: self.tok(s, add_special_tokens=False)["input_ids"]
+        sep = self.tok.convert_tokens_to_ids("<|endoftext|>")
+        start = [sep] if isinstance(sep, int) and sep >= 0 else []
+        self.heads = [start + enc(self.head.format(kinds=kinds, name=n, description=d)) for n, d in self.states.items()]
+        self.heads.append(start + enc(self.head.split("The end of")[0].format(kinds=kinds)))   # plain: list only
+
+    @torch.no_grad()
+    def _step(self, ids, cache):
+        x = torch.tensor([ids], device=self.dev)
+        out = self.model(input_ids=x, use_cache=True, **{self._cache_kw: cache})
+        new = out[self._cache_kw] if self._cache_kw in out.keys() else out.past_key_values
+        return torch.log_softmax(out.logits[0, -1].float(), -1), new
+
+    @torch.no_grad()
+    def emissions(self, ids: list[int]):
+        """Per token t >= 1 (0-based): log P(ids[t] | ids[:t], state k) for each k, and the plain log P(ids[t] |
+        ids[:t]). Returns (state_logp [T-1, K], plain_logp [T-1])."""
+        if max(len(h) for h in self.heads) + len(ids) > self.max_ctx:
+            raise RuntimeError("stream longer than max_ctx")
+        caches = []
+        for h in self.heads:
+            _, c = self._step(h, None)
+            caches.append(c)
+        state_lp, plain_lp = [], []
+        for t in range(len(ids) - 1):
+            row = []
+            for i in range(len(caches)):
+                lp, caches[i] = self._step([ids[t]], caches[i])
+                row.append(float(lp[ids[t + 1]]))
+            state_lp.append(row[:-1]); plain_lp.append(row[-1])
+        self.extra = {}
         return state_lp, plain_lp

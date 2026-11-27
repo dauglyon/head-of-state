@@ -64,6 +64,12 @@ SPECS = {
     # Own form: a lead-in sentence in the words of Gen-Z's topic template ("The topic of this [DOMAIN] revolves
     # around [TOPIC]: ", Table 5) placed mid-text before the next token, [DOMAIN] = "text". Gen-Z itself puts the
     # sentence once before the whole input; the placement and the domain word are not from Gen-Z.
+    # The owner's design and wording (2026-11-26): one key/value cache per state, opening with a sentence that the text
+    # is written in stretches each in one of the listed states, the list, and "The end of the following text is in
+    # state: <name>", then the stream as plain text (head_of_state.next_token.PER_STATE_HEAD); the head at the
+    # stream's last token of each cache is
+    # that state's prediction of the next token (head_of_state.next_token.PerStateCacheReader).
+    "per-state-cache": {"kind": "per_state_cache"},
     "cont-genz": {"chat": False, "head": "", "prefill": "", "spacing": True,
                   "branch": "\n\nThe topic of this text revolves around {description}: "},
 }
@@ -105,7 +111,7 @@ def run(spec, model_path, which="screen"):
     import torch
     from transformers import AutoModelForCausalLM
     from head_of_state.harness import tokens_and_gold
-    from head_of_state.next_token import StatedNextTokenReader
+    from head_of_state.next_token import PerStateCacheReader, StatedNextTokenReader
     tok = jd.tokenizer()
     model = AutoModelForCausalLM.from_pretrained(model_path, dtype=torch.bfloat16, device_map="cuda")
     import re
@@ -114,7 +120,8 @@ def run(spec, model_path, which="screen"):
     OUT.mkdir(parents=True, exist_ok=True)
     with out_file(spec, tag, which).open("w") as f:
         for set_name, (states, docs) in screen_docs(tok, which).items():
-            reader = StatedNextTokenReader(model, tok, states, spec=SPECS[spec])
+            reader = (PerStateCacheReader(model, tok, states) if SPECS[spec].get("kind") == "per_state_cache"
+                      else StatedNextTokenReader(model, tok, states, spec=SPECS[spec]))
             for s in docs:
                 ids, gold = tokens_and_gold(tok, s["text"], s["spans"])
                 torch.cuda.synchronize(); t0 = time.time()

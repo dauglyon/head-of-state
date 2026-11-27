@@ -946,3 +946,26 @@ given in this repository's layout and reproduce from the same code.
   After the statement the head's top tokens are a new line, " The", " This", " It": the start of the next sentence.
 - Conclusion: any text placed after the stream, chat or plain, makes the head predict what follows that text. The
   head's prediction of the stream's next token is the distribution at the stream's own last token.
+
+**2026-11-26 · One cache per state, the state stated before the stream (owner's design and wording)**
+- Commands: `H2O_LIGHTNING_PATH=<checkout> uv run python -I experiments/wording_screen.py run --spec per-state-cache
+  --model <Qwen3.5-4B-Base | H2O-Lightning-4B>`, then `... report` → `results/wording_screen.md`; evidence by position
+  from a second session's script.
+- Method (`head_of_state.next_token.PerStateCacheReader`): one key/value cache per state, opening with "The following
+  text is written in stretches, and each stretch is in one of these states. The state can change from one stretch to
+  the next.", the list of states with descriptions, and "The end of the following text is in state: <name>", then the
+  stream as plain text, each token fed once into every cache. The head at the stream's last token of cache k is
+  P(next token | text so far, state k). A cache with the sentence and list only gives the plain prediction.
+  `tests/test_next_token.py`: equal to a full recompute (difference 4.8e-07).
+- Screen documents (one news stream, one WikiSection article, 8 PubMed abstracts), per token:
+  - The state predictions are the text's own prediction: within 0.0–0.1 nats of the plain prediction (the reply-slot
+    forms were 4.6–5.6 nats below it).
+  - Evidence for the true state over the mean of the others: Qwen3.5-4B-Base 0.002 / 0.002 / 0.006 nats per token
+    (news / article / PubMed), positive on 50–52% of tokens; H2O-Lightning 0.020 / 0.024 / 0.002, 50–59%. The
+    reply-slot readout on the same tokens: 0.75 / 0.64 / 0.27.
+  - By position: largest in the first 32 tokens (H2O-Lightning news +0.21, Base +0.03 to +0.05), near zero after 128
+    tokens.
+- Conclusion: the caches predict the text, and the stated state barely changes that prediction: the next token is
+  predicted from the text itself, and a line naming the state, hundreds of tokens back, moves it by hundredths of a
+  nat. At 0.02 nats per token the decoder cannot separate states (about 0.2 is needed for 10% error at the declared
+  news segment length).
