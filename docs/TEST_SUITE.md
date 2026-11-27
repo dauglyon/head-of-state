@@ -109,3 +109,12 @@ Dropped after review: AMI roles, Friends, Code4ML, DistilKaggle, legal rhetorica
 - Forward-filter results at the declared length ×0.25 and ×4 (sensitivity to D1).
 - S1: delay broken out by previous-segment length.
 - Optional: one common neutral wording on a small subsample of each set, to separate wording from dataset.
+
+Combined readouts, confirmation (declared 2026-11-27, before any of these documents was read): the 12 seed-3 news
+streams of `experiments/news_confirm.py` and PubMed 20k RCT test abstracts 61-100 (seed-0 order; 1-60 used before).
+H2O-Lightning-4B; the question readout with the frozen settings (unit "the last few sentences", "the last sentence" for
+PubMed) and one cache per state (the owner's opening). Decodes, Viterbi with the declared length (news 270, PubMed 30):
+(1) the question readout's log readings; (2) the same counted fractionally, the weight from the stream's own
+autocorrelation (`tied_target_hmm.fit`); (3) (2) plus the cache log-likelihoods. Comparisons: (a) 2 against 1, (b) 3
+against 2; token accuracy paired by document and by gold segment, false switches per 1,000 tokens, switches placed
+within 16 tokens (`experiments/confirm_combined.py`; a second session fixes its analysis script before the run).
