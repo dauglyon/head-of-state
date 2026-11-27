@@ -1073,3 +1073,14 @@ given in this repository's layout and reproduce from the same code.
 - Conclusion: from good starting labels the learned word distributions are far better than ones built from the
   descriptions (0.48–0.54 on news), but below the reply slot itself; adding them to it counts the same evidence twice
   and does not help.
+
+**2026-11-27 · Tie-break documents: the reply slot against the history-free word distributions**
+- Commands: `H2O_LIGHTNING_PATH=<checkout> uv run python -I experiments/wording_screen.py run --spec ref-instruction
+  --tiebreak`; the word distributions of `experiments/state_vocab.py` scored on the same documents (one-off script).
+  Tie-break documents: seed-0 news streams 1 and 2, one WikiSection validation article outside the tuning sample,
+  8 other PubMed dev abstracts.
+- Token accuracy of settled labels, tie-break (screening documents in brackets), news / article / PubMed: reply slot at
+  every token 0.935 / 0.609 / 0.492 (0.916 / 0.709 / 0.526); passages from Qwen3.5-4B-Base, Gen-Z opening 0.621 / 0.399
+  / 0.413 (0.478 / 0.403 / 0.484); reply slot once per state 0.478 / 0.157 / 0.350 (0.542 / 0.195 / 0.442).
+- Conclusion: on twice the data the reply slot read at every token stays ahead of both history-free word
+  distributions on every set; its strength comes from reading the stream, not from a fixed per-state word list.
