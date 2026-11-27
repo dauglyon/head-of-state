@@ -70,6 +70,24 @@ SPECS = {
     # stream's last token of each cache is
     # that state's prediction of the next token (head_of_state.next_token.PerStateCacheReader).
     "per-state-cache": {"kind": "per_state_cache"},
+    # The owner's suggestion (2026-11-26): the stream is the assistant's own reply, and before the next token a
+    # temporary thinking block states the state; a reasoning model writes text that follows its thinking, so after
+    # "</think>" the next token should continue the reply under the stated state.
+    "think-state": {"chat": True, "stream_in": "assistant", "answer": False, "spacing": False, "prefill": "",
+                    "head": "The text moves between these states:\n{kinds}",
+                    "branch": "<think>\nThe text is now in state: {name} ({description}).\n</think>\n\n"},
+    # The same with the user turn asking for the text, so the reply is the text being written; with and without the
+    # line break that the template puts after "</think>" before a reply begins.
+    "think-write": {"chat": True, "stream_in": "assistant", "answer": False, "spacing": False, "prefill": "",
+                    "head": "Write a text that moves between these states:\n{kinds}",
+                    "branch": "<think>\nThe text is now in state: {name} ({description}).\n</think>\n\n"},
+    # The thinking block, then the stream's last 8 tokens again: the next token resumes text the model can see.
+    "think-write-repeat": {"chat": True, "stream_in": "assistant", "answer": False, "spacing": False, "prefill": "",
+                           "repeat": 8, "head": "Write a text that moves between these states:\n{kinds}",
+                           "branch": "<think>\nThe text is now in state: {name} ({description}).\n</think>\n\n"},
+    "think-write-inline": {"chat": True, "stream_in": "assistant", "answer": False, "spacing": False, "prefill": "",
+                           "head": "Write a text that moves between these states:\n{kinds}",
+                           "branch": "<think>\nThe text is now in state: {name} ({description}).\n</think>"},
     "cont-genz": {"chat": False, "head": "", "prefill": "", "spacing": True,
                   "branch": "\n\nThe topic of this text revolves around {description}: "},
 }

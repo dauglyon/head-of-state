@@ -969,3 +969,19 @@ given in this repository's layout and reproduce from the same code.
   predicted from the text itself, and a line naming the state, hundreds of tokens back, moves it by hundredths of a
   nat. At 0.02 nats per token the decoder cannot separate states (about 0.2 is needed for 10% error at the declared
   news segment length).
+
+**2026-11-26 · A thinking block before the next token (owner's suggestion): read-slot checks**
+- Command: a one-off rank script (not committed) on the first seed-0 news stream, 24 positions, post-trained
+  Qwen3.5-4B unless stated; specs `think-*` in `experiments/wording_screen.py`.
+- Form: the stream is the assistant's own reply; before the next token a temporary thinking block states the state
+  ("<think>\nThe text is now in state: <name> (<description>).\n</think>"), and the head is read after it.
+- Median rank of the actual next token, before a word start / inside a word (plain prediction 6 / 1):
+  - user turn listing the states, line break after "</think>": 64,148 / 9,359 (H2O-Lightning 9,366 / 3,468); the
+    model starts a new reply ("world", "The", "Based", "**").
+  - user turn asking for the text ("Write a text that moves between these states: ..."): 29,923 / 9,101.
+  - the same without the line break: 1,572 / 9,908; the model tries to end the turn ("\n\n", "<|im_end|>").
+  - the same with the stream's last 8 tokens repeated after the thinking block: 23 / 2 ("Yudhoy" → "ono" rank 2,
+    "seemingly un" → "ass" rank 1).
+- Conclusion: after a thinking block the model starts something new unless the text it is writing is visible again;
+  with the last 8 tokens repeated, the next token is again the stream's continuation, with the state stated directly
+  before it. Screened next for separation between states.

@@ -55,6 +55,9 @@ class StatedNextTokenReader(StreamStateReader):
     #   head      text before the stream; may contain {kinds} (one "- name: description" line per state)
     #   branch    the temporary text after the stream for one state; {name} and {description}
     #   answer    chat only: close the user turn and open the assistant turn after the branch (default True)
+    #   repeat    after the branch, repeat the stream's last n tokens, so the next token continues visible text
+    #   stream_in "assistant": the stream is the assistant's reply, `head` is the user turn, the branch follows the
+    #             stream inside the reply (e.g. a thinking block) and the head is read at its end
     #   prefill   text after that (chat) or at the end of the branch (plain)
     #   spacing   also count the actual token with its other leading-space choice (default: same as answer)
     spec: dict | None = None
@@ -92,7 +95,14 @@ class StatedNextTokenReader(StreamStateReader):
         kinds = "\n".join(f"- {n}: {d}" for n, d in self.states.items())
         head = sp.get("head", "").format(kinds=kinds)
         prefill = sp.get("prefill", "")
-        if sp.get("chat", True):
+        if sp.get("chat", True) and sp.get("stream_in") == "assistant":
+            # the stream is the assistant's own reply (after its opening empty thinking block); `head` is the user turn
+            msgs = ([{"role": "system", "content": sp["system"]}] if sp.get("system") else []) + \
+                   [{"role": "user", "content": head}]
+            text = self.tok.apply_chat_template(msgs, tokenize=False, add_generation_prompt=True, enable_thinking=False)
+            self.head_ids = self._enc(text)
+            tail = prefill
+        elif sp.get("chat", True):
             msgs = ([{"role": "system", "content": sp["system"]}] if sp.get("system") else []) + \
                    [{"role": "user", "content": head + _SPLIT}]
             text = self.tok.apply_chat_template(msgs, tokenize=False, add_generation_prompt=True, enable_thinking=False)
@@ -139,7 +149,14 @@ class StatedNextTokenReader(StreamStateReader):
             nxt = ids[t + 1]
             plain = torch.log_softmax(self.last_logits, -1)
             plain_lp.append(float(plain[nxt]))
-            rows = torch.log_softmax(torch.stack(self._branch_all()), -1).clamp_min(-1e4)   # [K, vocab]
+            n_rep = (self.spec or {}).get("repeat", 0)
+            if n_rep:      # the branch ends with the stream's last n_rep tokens again, so the prediction resumes the text
+                fixed = self.branches
+                self.branches = [b + self.stream[-n_rep:] for b in fixed]
+                rows = torch.log_softmax(torch.stack(self._branch_all()), -1).clamp_min(-1e4)
+                self.branches = fixed
+            else:
+                rows = torch.log_softmax(torch.stack(self._branch_all()), -1).clamp_min(-1e4)   # [K, vocab]
             tg = self._targets(nxt)
             state_lp.append(torch.logsumexp(rows[:, tg], 1).tolist())
             w = plain.exp()
