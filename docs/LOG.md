@@ -1162,3 +1162,23 @@ given in this repository's layout and reproduce from the same code.
   0.489 / 0.572 / 0.164 and 0.646 / 0.364 / 0.135).
 - Conclusion: a richer opening does not make the model's text prediction depend more on the state; it is worse than the
   label alone.
+
+**2026-11-27 · Combining the readouts on the same tokens (screening and tie-break documents)**
+- Commands: `H2O_LIGHTNING_PATH=<checkout> uv run python -I experiments/jev_screen.py run [--tiebreak]`; `...
+  wording_screen.py run --spec per-state-cache|think-write-repeat --tiebreak`; `uv run python -I
+  experiments/combine_readouts.py` → `results/combine_readouts.md`. 21 documents: 3 news streams, 2 WikiSection
+  articles, 16 PubMed abstracts; every readout on H2O-Lightning-4B, Viterbi with the declared length.
+- "Fractional": each reading of the question readout or the reply slot counts as 1/tau of a fresh observation, the
+  weight from the stream's own autocorrelation (tied_target_hmm.fit, no labels). Combinations add a next-token form's
+  emissions to the fractional readout in log space.
+- Token accuracy · switches placed within 16 tokens · false switches per 1,000 tokens (news / articles / PubMed):
+  - question readout 0.865 · 15/21 · 3.1 | 0.829 · 9/12 · 3.6 | 0.802 · 37/53 · 4.7
+  - question readout, fractional 0.902 · 15/21 · 0.8 | 0.855 · 10/12 · 1.9 | 0.814 · 35/53 · 2.5
+  - reply slot 0.929 · 18/21 · 1.6 | 0.656 · 8/12 · 2.2 | 0.507 · 5/53 · 2.1
+  - next-token alone: per-state caches 0.343 / 0.270 / 0.164; thinking block 0.389 / 0.061 / 0.376
+  - question fractional + per-state caches 0.917 · 14/21 · 1.5 | 0.826 · 10/12 · 1.9 | 0.830 · 40/53 · 1.7
+  - question fractional + thinking block 0.880 / 0.776 / 0.789; reply fractional + caches 0.907 / 0.589 / 0.538
+- Conclusion: the question readout counted fractionally is better than counted in full on every set, with a third to
+  half the false switches; adding the per-state caches' next-token evidence to it gives the best news and PubMed rows
+  (0.917, 0.830) and places more PubMed switches (40 against 35). The reply slot is best on news alone and weak
+  elsewhere. Differences of a few points on these documents are not yet tested for noise.
