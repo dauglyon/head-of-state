@@ -1017,3 +1017,16 @@ given in this repository's layout and reproduce from the same code.
 - Conclusion: two causes. (1) A state whose branch raises the probability of all text takes over (as in the reply-slot
   forms); (2) where that is absent, per-segment margins are too small against the cost of a switch. The evidence is
   there at the segment level (6 of 8 news segments won with known boundaries) but too weak per token for the decoder.
+
+**2026-11-26 · Per-state offsets estimated from the stream (no labels): not a fix**
+- One-off analysis of the screen files (not committed): each state's offset is its mean centred log-probability on
+  tokens the forward-backward posterior assigns to other states; emissions minus offsets; repeated to convergence;
+  settled labels at weight 1 with the declared lengths.
+- Token accuracy, as read → with offsets (news / article / PubMed): thinking block with repeat, H2O-Lightning 0.254 →
+  0.771, 0.080 → 0.013, 0.353 → 0.285; same, post-trained Qwen 0.378 → 0.148, 0.149 → 0.108, 0.155 → 0.191; per-state
+  caches, H2O-Lightning 0.489 → 0.110, 0.572 → 0.638, 0.164 → 0.443; per-state caches, Qwen3.5-4B-Base 0.646 → 0.120,
+  0.364 → 0.121, 0.135 → 0.138; reply-slot readout 0.916 → 0.752, 0.709 → 0.677, 0.526 → 0.394.
+- Conclusion: circular when the evidence is weak. The offset is measured on tokens the decoding assigns wrongly, so it
+  absorbs real signal with the bias and penalises states that fill much of the stream. Not adopted.
+- A segment-level decoder was considered for the second cause and not run: the cost of a switch (about 7 nats at the
+  news length) is the prior price of a switch for segments that long, and a decoder cannot replace missing evidence.
