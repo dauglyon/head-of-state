@@ -1051,3 +1051,14 @@ given in this repository's layout and reproduce from the same code.
   reply slot read at every token, and well below it on news: most of that readout's news result came from the stream
   text in its context, not from a fixed word list. One news stream and one article; differences of this size are not
   established.
+
+**2026-11-27 · Per-state distributions re-estimated from the decoding (MAP adaptation): trial**
+- One-off script (not committed) on the screening documents: starting from each per-state distribution of the previous
+  entry, forward-backward posteriors give each state's expected token counts; each state's distribution becomes its
+  description-based prior (weighted as one declared segment, L tokens) plus those counts, each token scored with its own
+  count left out; 15 iterations; settled labels at weight 1.
+- Token accuracy, start → adapted (news / article / PubMed): Gen-Z passages 0.478 → 0.490, 0.403 → 0.376, 0.484 →
+  0.467; own passages 0.322 → 0.436, 0.296 → 0.316, 0.406 → 0.351; reply slot once 0.542 → 0.540, 0.195 → 0.254, 0.442
+  → 0.279.
+- Conclusion: re-estimation reinforces the first decoding; from starting labels at 0.2–0.5 accuracy the counts are
+  mostly wrong too, so it does not lift a weak emission. It could only refine one that already decodes well.
