@@ -118,3 +118,11 @@ PubMed) and one cache per state (the owner's opening). Decodes, Viterbi with the
 autocorrelation (`tied_target_hmm.fit`); (3) (2) plus the cache log-likelihoods. Comparisons: (a) 2 against 1, (b) 3
 against 2; token accuracy paired by document and by gold segment, false switches per 1,000 tokens, switches placed
 within 16 tokens (`experiments/confirm_combined.py`; a second session fixes its analysis script before the run).
+Its analysis, fixed by the second session before any confirmation record was decoded
+(`/tmp/hos-stats/k3_confirm_combined.py`, sha256 starting 0f87f45726f8d186; scratch, not in the repo): primary family of
+four two-sided tests, Holm-corrected at 5%: per set, (a) false switches, decode 2 against 1, and (b) token accuracy,
+decode 3 against 2, each a sign-flip test on per-document differences (exact up to 16 documents, else 20,000 random
+patterns, seed 0); 95% intervals by resampling documents. Pre-stated reading, not tested: for (a), "the fractional
+count costs no accuracy" is supported on a set when the lower end of the by-document interval of (2 minus 1) is above
+-0.02. Secondary, reported only: the same by gold segment, switches placed (McNemar), false switches for (b), and (b)
+with the cache columns rotated between states.
