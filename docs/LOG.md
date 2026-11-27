@@ -985,3 +985,18 @@ given in this repository's layout and reproduce from the same code.
 - Conclusion: after a thinking block the model starts something new unless the text it is writing is visible again;
   with the last 8 tokens repeated, the next token is again the stream's continuation, with the state stated directly
   before it. Screened next for separation between states.
+
+**2026-11-26 · Thinking block with the last tokens repeated: screened**
+- Command: `H2O_LIGHTNING_PATH=<checkout> uv run python -I experiments/wording_screen.py run --spec think-write-repeat
+  --model <post-trained Qwen3.5-4B | H2O-Lightning-4B>`, then `... report` → `results/wording_screen.md`; evidence by
+  position from a second session's script; best path at weight 1 with the declared lengths (270 / 184 / 30).
+- State predictions against the plain prediction: 0.4–1.0 nats below it (post-trained Qwen), 1.4–3.0 (H2O-Lightning).
+- Evidence for the true state per token (news / article / PubMed): post-trained Qwen 0.023 / 0.009 / 0.013, positive
+  on 54–56% of tokens; H2O-Lightning 0.122 / 0.003 / 0.065, 50–63%. Largest in the first 32 tokens (0.15–0.33); on
+  H2O-Lightning news it stays at 0.10 past 512 tokens.
+- Token accuracy of settled labels: post-trained Qwen 0.378 / 0.149 / 0.155; H2O-Lightning 0.254 / 0.080 / 0.353
+  (per-state caches on H2O-Lightning 0.489 / 0.572 / 0.164; the reply-slot readout 0.916 / 0.709 / 0.526).
+- Conclusion: with the state stated right before a prediction that continues the text, the state still moves the
+  next token little, and decoding is worse than the per-state caches. In every form where the head predicts the text,
+  the evidence is largest in a document's first tokens and small after: once the text so far shows what it is about,
+  the stated state adds little to the prediction of the next token.
