@@ -934,3 +934,15 @@ given in this repository's layout and reproduce from the same code.
 - Conclusion: at the read position the head does not predict the text's next token; it predicts the start of an
   answer. The differences between states that carried the news-topic result come from how strongly each token is
   associated with a state's name and description in that answer distribution, not from a prediction of the text.
+
+**2026-11-26 · Correction: the next-token runs read an assistant's reply, not the text**
+- The instruction and catalogue forms put the stream in the user turn of the chat template, and each branch closed
+  that turn and opened an assistant reply ending "Next word:". The head at the read position therefore predicted the
+  first token of a reply. All next-token results above in those forms (news topics, joined disease sections, the
+  four test sets, the catalogue comparisons) measure that reply distribution, not a prediction of the text.
+- Read-slot check on plain text, no chat markers, the stream followed by " This part of the text is <name>." (one-off
+  script, first seed-0 news stream, 24 positions): median rank of the actual next token before a word start 1,051 on
+  Qwen3.5-4B-Base (plain prediction 7) and 382 on H2O-Lightning (15); before a word piece 74,062 (1) and 58,831 (2).
+  After the statement the head's top tokens are a new line, " The", " This", " It": the start of the next sentence.
+- Conclusion: any text placed after the stream, chat or plain, makes the head predict what follows that text. The
+  head's prediction of the stream's next token is the distribution at the stream's own last token.
