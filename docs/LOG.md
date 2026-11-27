@@ -1109,3 +1109,16 @@ given in this repository's layout and reproduce from the same code.
   (0% of 33); per-state caches, Qwen3.5-4B-Base -0.2 / -0.6 / -0.2 (0% on all); thinking block with repeat,
   H2O-Lightning +1.6 (25%) / -19.5 (0%) / -1.2 (27%); the reply slot +111.5 (75%) / +45.2 (86%) / -8.9 (30%). The
   text-predicting emissions lead by a nat or two per segment, below the cost of a switch; the reply slot by a hundred.
+
+**2026-11-27 · Correction: the identity is an equality, not a ceiling**
+- The two entries above concluded that true next-token emissions carry little evidence per segment "by construction".
+  That does not follow (a second session's check): summed over a segment, the log-ratio equals the change in the
+  belief the predictions imply, and that change is unbounded; where predictions differ by state, evidence grows with
+  the number of tokens, and per-state language-model HMMs segment text well.
+- The ratio-of-readings test decoded into one state because the question readout is capped: the largest reading for
+  any state is 0.96, the widest log-odds between two states at a token 4.6-5.2 nats, so the telescoped segment total
+  (median 2.8-3.3 nats on news, at most 7.3) rarely exceeds the 6.7-nat switch cost (2-3% of segment pairs).
+- The per-state-cache result stands as a measurement: this model's text prediction is almost independent of a state
+  stated at the top. The repeated-counting reading of the readouts that decode well stands for the question readout
+  (consecutive readings correlated 0.93-0.95) and in smaller measure for the reply slot (per-token evidence
+  autocorrelation 0.26-0.34).

@@ -75,12 +75,14 @@ confirmation documents (read once, with the comparison declared beforehand) are 
 
 By Bayes' rule, P(x_t | x_<t, k) = P(k | x_<=t) P(x_t | x_<t) / P(k | x_<t) (Yang & Klein 2021, sec. 3). For an
 emission that is a true next-token prediction given the state, the log-ratio between two states summed over a
-segment therefore telescopes to the change in the model's own belief about the state across the segment: a few nats
-at most (an even split to 0.99 is about 4-5). A switch costs about log(L (K - 1)) under the sticky transitions, 6.7
-nats for news segments of 270 tokens. So such emissions give a decoder little reason to switch, and their per-token
-evidence is small by construction once the text so far has shown what it is about. Every text-predicting form run so
-far behaves this way (0.002-0.12 nats per token), and so does the ratio of consecutive question readings (decoded into
-a single state on every set; `docs/LOG.md`, 2026-11-27).
+segment equals the change in log-odds of the belief the model's own predictions imply across the segment. That is an
+equality, not a bound: where the predictions differ by state, the wrong state's belief keeps falling and the evidence
+grows with the number of tokens (true per-state language models segment text well: Dragon's topic HMM, Stolcke et
+al.'s dialogue-act HMM). What was measured here is that this model's text predictions barely respond to the stated
+state, wherever it is stated (0.002-0.12 nats per token; `docs/LOG.md`, 2026-11-26 and 2026-11-27). The ratio of
+consecutive question readings decoded into a single state for a different reason: an answer-letter softmax at
+temperature 0.75 never exceeds about 0.96, so one reading expresses at most about 4.6 nats of log-odds and the
+telescoped total stays below the cost of a switch.
 
 The readouts that decode well (the reply slot, the question readout) are not such conditionals: each restates the
 evidence for the state at every token, and the decoder counts it again at each one. Labels the text does not depend
