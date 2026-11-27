@@ -1141,3 +1141,11 @@ given in this repository's layout and reproduce from the same code.
   segment's first sentences; per segment it totals a few nats (expected from the stream-start measurement: about 11 on
   H2O-Lightning news; measured median 1.9). The weak conditioning of the per-state caches is not mainly the earlier
   text holding the state back.
+
+**2026-11-27 · Where the reply slot fails on PubMed**
+- One-off script (not committed): confusion of settled labels, reply slot at every token (ref-instruction,
+  H2O-Lightning), the 16 screen and tie-break PubMed abstracts.
+- Share of each true section's tokens labelled methods: background 0.95, objective 1.00, methods 1.00, results 0.62,
+  conclusions 0.20 (conclusions 0.63 labelled results).
+- Conclusion: its PubMed accuracy (0.49-0.53) is mostly the methods state taking over, the per-state lift seen on the
+  other sets; it does not read the abstract sections.
