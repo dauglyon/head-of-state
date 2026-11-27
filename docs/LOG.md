@@ -1084,3 +1084,22 @@ given in this repository's layout and reproduce from the same code.
   / 0.413 (0.478 / 0.403 / 0.484); reply slot once per state 0.478 / 0.157 / 0.350 (0.542 / 0.195 / 0.442).
 - Conclusion: on twice the data the reply slot read at every token stays ahead of both history-free word
   distributions on every set; its strength comes from reading the stream, not from a fixed per-state word list.
+
+**2026-11-27 · Next-token emissions from the question readout by Bayes' rule (FUDGE identity), offline**
+- Command: `uv run python -I experiments/readout_ratio.py` → `results/readout_ratio.md`
+- Method: P(x_t | x_<t, k) = P(k | x_<=t) P(x_t | x_<t) / P(k | x_<t) (Yang & Klein 2021, sec. 3); between states the
+  emission of token t is the ratio of consecutive readings, r_t(k) / r_{t-1}(k), no constant set. Saved every-token
+  question readings; Viterbi with the declared length, weight 1.
+- Result, token accuracy · switches placed within 16 tokens (readings used directly, the earlier settled labels, in
+  brackets): news seed 0 0.242 · 0 of 21 (0.865 · 15); disease sections seed 0 0.140 · 0 of 8 (0.683 · 4); news seed 2
+  0.404 · 0 of 18 (0.874 · 10); disease sections seed 2 0.362 · 0 of 11 (0.655 · 5); PubMed 0.199 · 1 of 95 (0.776 ·
+  63); single-state streams 0.463 (0.468), no false switches.
+- Why it collapses: the log-ratios telescope. Summed over a segment they equal log r_end(k) - log r_start(k), the change
+  in the model's belief about the state across the segment, a few nats at most (an even split to 0.99 is about 4-5),
+  while a switch costs about log(L (K - 1)), 6.7 nats at the news length. The decoder never finds enough evidence to
+  switch.
+- Conclusion: by the same identity, any emission that is a true P(next token | text so far, state) sums over a segment
+  to the model's own change of belief about the state, so its per-token evidence is small by construction; this is
+  the pattern of every text-predicting form run on 2026-11-26. The reply slot and the question readout decode well
+  because they are not such conditionals: each restates the state evidence at every token, and the decoder counts it
+  again at each one.
