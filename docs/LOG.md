@@ -1000,3 +1000,20 @@ given in this repository's layout and reproduce from the same code.
   next token little, and decoding is worse than the per-state caches. In every form where the head predicts the text,
   the evidence is largest in a document's first tokens and small after: once the text so far shows what it is about,
   the stated state adds little to the prediction of the next token.
+
+**2026-11-26 · Why the text-predicting forms decode poorly (diagnosis)**
+- One-off analysis of the screen files (not committed): per true segment, each state's log-probability summed over
+  the segment's tokens; which state wins; settled label shares; per-state lift (a state's centred log-probability
+  on text of other states).
+- Thinking block with repeat, H2O-Lightning, news: the true state wins 6 of 8 segments on summed log-probability,
+  yet the settled labels give business 85% of tokens (true 11%). Business's branch raises the probability of all text
+  by 0.089 nats per token (its own text: 0.12), and in four segments the true state leads business by only 0.2–5.4
+  nats, less than the cost of the two switches that labelling it would need (about 13 nats at L = 270). Extreme tokens
+  are not the cause: the top 1% of tokens carry 7% of the absolute evidence. Articles: true state wins 1 of 7
+  segments, prognosis takes 87% of labels.
+- Per-state caches, H2O-Lightning: true state wins 6 of 8 news segments and 4 of 7 article segments with almost no
+  lift (range 0.01–0.02), but per-token margins of 0.02 nats sum to a few nats per segment, so the path keeps few
+  switches and one state (science and technology, 55%) covers most of the stream.
+- Conclusion: two causes. (1) A state whose branch raises the probability of all text takes over (as in the reply-slot
+  forms); (2) where that is absent, per-segment margins are too small against the cost of a switch. The evidence is
+  there at the segment level (6 of 8 news segments won with known boundaries) but too weak per token for the decoder.
