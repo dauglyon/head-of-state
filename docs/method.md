@@ -73,11 +73,19 @@ confirmation documents (read once, with the comparison declared beforehand) are 
 
 ## What the emissions can and cannot carry
 
-Per-token evidence for the true state over the others, instruction form, tuning documents: 0.62–0.74 nats for
-news topics and section types, 0.03–0.11 for review sentiment, dialogue acts, news sentence roles and story
-stages. The second group are labels put on finished text; the next word barely depends on them, so they are
-not hidden states in this sense and are not used as tests. Related section types whose words overlap
-(symptom, mechanism, prognosis) are confused a whole section at a time.
+By Bayes' rule, P(x_t | x_<t, k) = P(k | x_<=t) P(x_t | x_<t) / P(k | x_<t) (Yang & Klein 2021, sec. 3). For an
+emission that is a true next-token prediction given the state, the log-ratio between two states summed over a
+segment therefore telescopes to the change in the model's own belief about the state across the segment: a few nats
+at most (an even split to 0.99 is about 4-5). A switch costs about log(L (K - 1)) under the sticky transitions, 6.7
+nats for news segments of 270 tokens. So such emissions give a decoder little reason to switch, and their per-token
+evidence is small by construction once the text so far has shown what it is about. Every text-predicting form run so
+far behaves this way (0.002-0.12 nats per token), and so does the ratio of consecutive question readings (decoded into
+a single state on every set; `docs/LOG.md`, 2026-11-27).
+
+The readouts that decode well (the reply slot, the question readout) are not such conditionals: each restates the
+evidence for the state at every token, and the decoder counts it again at each one. Labels the text does not depend
+on (dialogue acts, news sentence roles, story stages) were not recovered by any form and are not used as tests.
+Related section types whose words overlap (symptom, mechanism, prognosis) are confused a whole section at a time.
 
 ## Cost
 
