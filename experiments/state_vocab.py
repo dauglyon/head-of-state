@@ -77,11 +77,12 @@ def build():
         print(f"reply once {s}", flush=True)
 
 
-def records(kind, tok):
-    """Screen-document records whose state_logp rows are log P_k(next token), in wording_screen's format."""
+def records(kind, tok, which="screen"):
+    """Screen- (or tie-break-) document records whose state_logp rows are log P_k(next token), in wording_screen's
+    format."""
     from head_of_state.harness import tokens_and_gold
     out = []
-    for s, (states, docs) in ws.screen_docs(tok).items():
+    for s, (states, docs) in ws.screen_docs(tok, which).items():
         P = np.load(OUT / f"{kind}_{s}.npy")                     # [K, vocab] log-probabilities
         bg = np.logaddexp.reduce(P, 0) - np.log(len(P))          # the states' mixture
         for d in docs:
