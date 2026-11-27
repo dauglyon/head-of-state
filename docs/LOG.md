@@ -1149,3 +1149,16 @@ given in this repository's layout and reproduce from the same code.
   conclusions 0.20 (conclusions 0.63 labelled results).
 - Conclusion: its PubMed accuracy (0.49-0.53) is mostly the methods state taking over, the per-state lift seen on the
   other sets; it does not read the abstract sections.
+
+**2026-11-27 · Per-state caches with model-written examples of each state (trial)**
+- Commands: `H2O_LIGHTNING_PATH=<checkout> uv run python -I experiments/state_examples.py write` (two passages per
+  state written on request by the post-trained Qwen3.5-4B; the base model's continuations of Gen-Z's template were
+  fragments about the text, not text in the state, and were not used), then `... wording_screen.py run --spec
+  per-state-examples --model <H2O-Lightning-4B | Qwen3.5-4B-Base>` → `results/wording_screen.md`.
+- Form: the per-state-cache opening with "Text in state <name>:" and the two passages before "The end of the following
+  text is in state: <name>".
+- Evidence for the true state per token (news / article / PubMed): H2O-Lightning -0.016 / +0.019 / +0.016; Base 0.00 /
+  0.00 / 0.00. Settled accuracy: H2O-Lightning 0.280 / 0.066 / 0.223, Base 0.120 / 0.121 / 0.124 (label-only caches
+  0.489 / 0.572 / 0.164 and 0.646 / 0.364 / 0.135).
+- Conclusion: a richer opening does not make the model's text prediction depend more on the state; it is worse than the
+  label alone.
