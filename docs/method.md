@@ -32,8 +32,12 @@ the forward filter, smoother and Viterbi apply as printed, and the product of em
 likelihood of the text under a state path, provided each emission is the model's prediction of the text's own
 continuation.
 
-The branches lose 4–6 nats against the plain next-token prediction, 7–8.5 on word pieces against about 2 on
-word starts (a second session's measurement); what the head predicts at the read position is being examined.
+**What this form reads.** The stream sits in a chat turn and the head is read at the start of the reply after
+"Next word:", so it predicts the first token of an answer, not the text's continuation (actual next token's
+median rank 229 before a word and 54,680 inside one, against 16 and 1 for the plain prediction). Its differences
+between states come from how strongly each token goes with each named state. Forms that predict the text (one
+cache per state; a thinking block before the next token with the last tokens repeated) give 0.002–0.12 nats per
+token of state evidence (`docs/LOG.md`, 2026-11-26).
 
 Why the list of states goes at the start: a description tells the model what kind of text this is as well as
 which state. When each branch carried its own description ("This part of the text is <description>. What word

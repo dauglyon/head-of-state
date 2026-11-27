@@ -23,26 +23,33 @@ the method reads.
 
 ## How it works
 
-The text passes once through an open-weights language model and stays in its key/value cache. The names
-and descriptions of all the states are listed once at the start of the text.
-
-At every token, the model's output head predicts the next token once for each state. A temporary branch
-asks "This part of the text is <state>. What word comes next?", the head's probability for the token that
-actually comes next is read, and the branch is removed from the cache. The K branches run as one batch.
-
-Those K probabilities, P(next token | text so far, state), are the token's emissions. An HMM-like decoder
-combines them with sticky transitions set from a declared typical segment length:
+The text passes once through an open-weights language model and stays in its key/value cache. The design
+calls for each token's emission to be P(next token | text so far, state k): the model's prediction of the
+text's own continuation, once for each state. An HMM-like decoder combines the K emissions with sticky
+transitions set from a declared typical segment length:
 - the live output is the likeliest state of a forward pass, available as each token arrives;
 - the settled labels are the Viterbi path over all tokens, so a switch is placed where the new state's
   tokens begin to favour it rather than where the live output noticed it.
 
-Because each emission conditions on all the text before it, the product of emissions over tokens is the
-likelihood of the text under a sequence of states, as in a Markov-switching model (Hamilton, "Regime
-switching models", eq. 7). The listed descriptions name no particular state, so each emission depends only
-on the current state and the text.
+If each emission is the model's prediction of the text given the state, the product of emissions over
+tokens is the likelihood of the text under a sequence of states, as in a Markov-switching model (Hamilton,
+"Regime switching models", eq. 7).
+
+**What the tool reads today.** All states' names and descriptions are listed at the start of a chat turn
+that holds the stream. At every token, one temporary branch per state closes that turn with "This part of the
+text is <state>. What word comes next?", and the head is read at the start of the reply. That reading is the
+start of an answer, not the text's continuation: the actual next token's median rank there is 229 before a
+word and 54,680 inside one, against 16 and 1 for the model's plain prediction. Its differences between states
+come from how strongly each token goes with each named state. It is the strongest readout found so far.
+
+**Forms that do predict the text** (`docs/LOG.md`): one cache per state with the state stated before the
+stream, and a thinking block stating the state before the next token with the last tokens repeated. Both
+predict the text, but the stated state changes the prediction by only 0.002–0.12 nats per token: once the
+text so far shows what it is about, being told the state adds little. The emission the design calls for has
+not been obtained yet.
 
 The default model is H2O-Lightning-4B, an open-weights Qwen3.5-4B fine-tuned to answer choice questions
-about a record. Qwen3.5-4B itself gave noisier emissions in the same setting.
+about a record.
 
 **Status: early prototype, with no settled use case yet.** Descriptions of problems that resemble this one
 are welcome in the issue tracker.
@@ -55,10 +62,10 @@ sections carry labels. Every token is read, by H2O-Lightning-4B on one 12 GB GPU
 Viterbi has settled them. Time to notice is how many tokens after a true switch the live output first shows
 the new state; a stream read left to right cannot know sooner, so it is reported and not counted as error.
 
-All of the following is tuning data: the documents the wording was chosen on. A confirmation on 12 news
-streams nothing has read, with the comparison declared beforehand, is next. The news and joined-section
-streams were read with each state's description in its own question, before the descriptions moved to the
-start of the text; the whole articles were read as described above.
+All of the following is tuning data, read with the reply-slot readout described above: on the news and
+joined-section streams with each state's description in its own question, on the whole articles with the
+descriptions listed at the start. A confirmation on 12 unread news streams is on hold until an emission is
+chosen.
 
 | States (documents) | Token accuracy | Always the most common state | Switches placed within 16 tokens |
 |---|---|---|---|
