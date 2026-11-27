@@ -1182,3 +1182,22 @@ given in this repository's layout and reproduce from the same code.
   half the false switches; adding the per-state caches' next-token evidence to it gives the best news and PubMed rows
   (0.917, 0.830) and places more PubMed switches (40 against 35). The reply slot is best on news alone and weak
   elsewhere. Differences of a few points on these documents are not yet tested for noise.
+
+**2026-11-27 · Combined-readout confirmation, news (12 unread seed-3 streams)**
+- Commands: `H2O_LIGHTNING_PATH=<checkout> uv run python -I experiments/confirm_combined.py run --set news`, then `...
+  report` → `results/confirm_combined.md`; the registered tests by a second session's fixed script (sha256 0f87f457...,
+  docs/TEST_SUITE.md).
+- Decodes (token accuracy · switches placed within 16 tokens · false switches per 1,000): (1) question readout 0.858 ·
+  25/36 · 3.6; (2) counted fractionally 0.866 · 13/36 · 0.6; (3) fractional plus per-state caches 0.873 · 12/36 · 1.0.
+- Registered: (a) false switches, 2 against 1: 3.6 → 0.6 per 1,000, by document [-4.2, -1.9], sign-flip p 0.001, 11
+  streams fewer and none more; established. (b) accuracy, 3 against 2: +0.007 [-0.021, +0.042], p 0.66; not
+  established. Pre-stated reading for (a), "no accuracy cost": not supported, +0.008 [-0.067, +0.060].
+- Secondary: true switches placed within 16 tokens, 2 against 1: 25 → 13 of 36, none gained, 12 lost (McNemar p <
+  0.001). The fractional count removed false switches by removing switches, true ones included; two streams with 4 and
+  2 true switches get none, and 6 of the 12 lost switches have no fractional switch within 64 tokens. The weight fitted
+  per stream ranges 0.010-0.148 (median 0.058); the stream at 0.010 falls from 0.908 to 0.538. These streams are
+  1,000-1,400 tokens with 1-6 switches, shorter than the tuning streams; the per-stream weight estimate likely needs
+  longer streams (not tested).
+- Conclusion: on unread news, counting the question readout fractionally cuts false switches but loses half the true
+  switches; adding the per-state caches' evidence does not raise accuracy. The false-switch endpoint alone would have
+  read as a gain. PubMed half running.

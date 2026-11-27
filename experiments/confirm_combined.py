@@ -85,6 +85,8 @@ def report():
         J = {r["id"]: r for r in map(json.loads, fj.open())}
         C = {r["id"]: r for r in map(json.loads, fc.open())}
         ids = [i for i in J if i in C]
+        if not ids:
+            continue
         K = len(jd.LISTS["ag_news"]) if name == "news" else len(pubmed_rct.STATES)
         cs = {1: [], 2: [], 3: []}; tokens = 0
         for i in ids:
