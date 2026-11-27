@@ -188,6 +188,7 @@ class PerStateCacheReader:
     states: dict[str, str]
     head: str = PER_STATE_HEAD
     max_ctx: int = 8192
+    examples: dict | None = None      # optional {state name: text}, placed after the list as "Text in state <name>:"
 
     def __post_init__(self):
         import inspect
@@ -200,7 +201,13 @@ class PerStateCacheReader:
         enc = lambda s: self.tok(s, add_special_tokens=False)["input_ids"]
         sep = self.tok.convert_tokens_to_ids("<|endoftext|>")
         start = [sep] if isinstance(sep, int) and sep >= 0 else []
-        self.heads = [start + enc(self.head.format(kinds=kinds, name=n, description=d)) for n, d in self.states.items()]
+        def head_for(n, d):
+            h = self.head.format(kinds=kinds, name=n, description=d)
+            if self.examples:     # examples of the state's text go before the line naming the end's state
+                cut = h.index("The end of")
+                h = h[:cut] + f"Text in state {n}:\n{self.examples[n].strip()}\n\n" + h[cut:]
+            return h
+        self.heads = [start + enc(head_for(n, d)) for n, d in self.states.items()]
         self.heads.append(start + enc(self.head.split("The end of")[0].format(kinds=kinds)))   # plain: list only
 
     @torch.no_grad()

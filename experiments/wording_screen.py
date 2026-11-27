@@ -70,6 +70,8 @@ SPECS = {
     # stream's last token of each cache is
     # that state's prediction of the next token (head_of_state.next_token.PerStateCacheReader).
     "per-state-cache": {"kind": "per_state_cache"},
+    # The same with two model-written passages per state in the opening (experiments/state_examples.py).
+    "per-state-examples": {"kind": "per_state_cache", "examples": True},
     # The owner's suggestion (2026-11-26): the stream is the assistant's own reply, and before the next token a
     # temporary thinking block states the state; a reasoning model writes text that follows its thinking, so after
     # "</think>" the next token should continue the reply under the stated state.
@@ -138,8 +140,11 @@ def run(spec, model_path, which="screen"):
     OUT.mkdir(parents=True, exist_ok=True)
     with out_file(spec, tag, which).open("w") as f:
         for set_name, (states, docs) in screen_docs(tok, which).items():
-            reader = (PerStateCacheReader(model, tok, states) if SPECS[spec].get("kind") == "per_state_cache"
-                      else StatedNextTokenReader(model, tok, states, spec=SPECS[spec]))
+            if SPECS[spec].get("kind") == "per_state_cache":
+                ex = json.loads((RUNS / "state_vocab" / "examples.json").read_text())[set_name] if SPECS[spec].get("examples") else None
+                reader = PerStateCacheReader(model, tok, states, examples=ex)
+            else:
+                reader = StatedNextTokenReader(model, tok, states, spec=SPECS[spec])
             for s in docs:
                 ids, gold = tokens_and_gold(tok, s["text"], s["spans"])
                 torch.cuda.synchronize(); t0 = time.time()
