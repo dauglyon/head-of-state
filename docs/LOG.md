@@ -1030,3 +1030,24 @@ given in this repository's layout and reproduce from the same code.
   absorbs real signal with the bias and penalises states that fill much of the stream. Not adopted.
 - A segment-level decoder was considered for the second cause and not run: the cost of a switch (about 7 nats at the
   news length) is the prior price of a switch for segments that long, and a decoder cannot replace missing evidence.
+
+**2026-11-27 · Per-state word distributions from the descriptions (history-free emissions): trials**
+- Commands: `H2O_LIGHTNING_PATH=<checkout> uv run python -I experiments/state_vocab.py build`, then `... report` →
+  `results/state_vocab.md`; the common-token variant by a one-off script (not committed).
+- Method: a per-state distribution over the vocabulary, built once from the description, used as the emission of every
+  token (the form of Dragon's topic unigrams, TDT pilot report sec. 2.2, derived zero-shot): (a) Qwen3.5-4B-Base writes
+  8 passages of 96 tokens from an opening naming the state, P_k = the next-token distribution averaged over all their
+  positions (openings: "The following text is about <description>." and Gen-Z's topic template); (b) H2O-Lightning's
+  reply-slot distribution computed once per state with no stream text.
+- Token accuracy of settled labels on the screening documents (news / article / PubMed): (a) own opening 0.322 / 0.296
+  / 0.406, Gen-Z opening 0.478 / 0.403 / 0.484; (b) 0.542 / 0.195 / 0.442. Per-state caches 0.489 / 0.572 / 0.164;
+  reply slot at every token 0.916 / 0.709 / 0.526.
+- Evidence on news 0.31–0.42 nats per token, but only 49–63% of tokens favour the true state and the per-state lift
+  ranges 1.1–1.8 nats: a state's distribution can raise the commonest tokens, which make up most of a text.
+- Giving the 174 or 500 commonest tokens (by the states' mixture) no evidence, as Dragon dropped 174 stop words:
+  (b) news 0.542 → 0.555 / 0.799, article 0.195 → 0.340 / 0.452, PubMed 0.442 → 0.353 / 0.325; (a, Gen-Z) news 0.478 →
+  0.512 / 0.584, article 0.403 → 0.283 / 0.261. Mixed; the counts were chosen here and read on these documents.
+- Conclusion: history-free per-state distributions carry evidence but decode at 0.2–0.6 on these documents, below the
+  reply slot read at every token, and well below it on news: most of that readout's news result came from the stream
+  text in its context, not from a fixed word list. One news stream and one article; differences of this size are not
+  established.
