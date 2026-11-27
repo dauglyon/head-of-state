@@ -1122,3 +1122,22 @@ given in this repository's layout and reproduce from the same code.
   stated at the top. The repeated-counting reading of the readouts that decode well stands for the question readout
   (consecutive readings correlated 0.93-0.95) and in smaller measure for the reply slot (per-token evidence
   autocorrelation 0.26-0.34).
+
+**2026-11-27 · Restart upper bound: each state's context restarts at the true segment start**
+- Commands: `H2O_LIGHTNING_PATH=<checkout> uv run python -I experiments/restart_upper_bound.py run --model
+  <Qwen3.5-4B-Base | H2O-Lightning-4B>`, then `... report` → `results/restart_upper_bound.md`; segment leads and settled
+  labels by a one-off script.
+- Method: for token t in a true segment starting at r, the emission for state k is P(x_t | opening_k, x_r..x_{t-1}),
+  with the per-state-cache opening (the owner's wording), so each emission conditions on the state and only the text
+  since the segment began (the restart that Eisenstein & Barzilay 2008 and Wagner et al. 2022 score with). The true
+  boundaries are given to the emissions, so this bounds what restarted contexts can give.
+- Evidence for the true state per token (news / article / PubMed): Base +0.007 / +0.011 / +0.012; H2O-Lightning +0.030 /
+  +0.024 / -0.007. Largest in the first 8-32 tokens after a restart (Base article +0.21, H2O news +0.085), about zero
+  after 32.
+- Median segment lead of the true state and share of segments above the switch cost: Base -0.3 (0% of 8) / +0.4 (0% of
+  7) / +0.5 (0% of 33); H2O-Lightning +1.9 (25%) / -5.7 (14%) / -1.8 (6%). Settled accuracy: Base 0.646 / 0.066 /
+  0.306; H2O-Lightning 0.724 / 0.370 / 0.188.
+- Conclusion: even restarted at the true boundary, the stated state moves this model's text prediction little beyond a
+  segment's first sentences; per segment it totals a few nats (expected from the stream-start measurement: about 11 on
+  H2O-Lightning news; measured median 1.9). The weak conditioning of the per-state caches is not mainly the earlier
+  text holding the state back.
