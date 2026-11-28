@@ -1240,3 +1240,14 @@ given in this repository's layout and reproduce from the same code.
 - Conclusion: two structural changes help on these documents without losing switches: allowing switches only at
   sentence starts, and placing switches with the current-sentence readout. Both need the current-sentence readings on
   more documents before any claim.
+
+**2026-11-27 · Sentence-placed and sentence-start switches on the seed-2 streams; confirmation declared**
+- Command: `H2O_LIGHTNING_PATH=<checkout> uv run python -I experiments/joined_documents.py run ag_news wikisection --seed
+  2 --target sentence`; decodes by a one-off script (the same functions as `experiments/confirm_sentence.py`).
+- Token accuracy · placed within 16 · false per 1,000, as read / sentence starts / sentence-placed / both: news seed 2
+  0.874 · 10/18 · 2.4 / 0.882 · 10/18 · 1.6 / 0.886 · 12/18 · 2.1 / 0.883 · 9/18 · 1.8; disease sections seed 2 0.655 ·
+  5/11 · 5.3 / 0.639 · 4/11 · 4.7 / 0.669 · 6/11 · 5.0 / 0.639 · 4/11 · 4.7. Seed 0, both: news 0.910 · 15/21 · 1.9,
+  disease sections 0.696.
+- Sentence-placed is better than as read on all four tuning sets, with more switches placed each time; sentence starts
+  helps news and hurts disease sections on seed 2. Confirmation declared on unread documents (12 seed-4 news streams,
+  PubMed test 101-140; docs/TEST_SUITE.md), running.
