@@ -126,3 +126,13 @@ patterns, seed 0); 95% intervals by resampling documents. Pre-stated reading, no
 count costs no accuracy" is supported on a set when the lower end of the by-document interval of (2 minus 1) is above
 -0.02. Secondary, reported only: the same by gold segment, switches placed (McNemar), false switches for (b), and (b)
 with the cache columns rotated between states.
+
+Sentence-placed switches and sentence-start switches, confirmation (declared 2026-11-27, before any of these documents
+was read): 12 news streams of about 1,000 tokens built with seed 4 from AG News test articles in none of the seed-0, 2
+and 3 streams, and PubMed test abstracts 101-140 (seed-0 order; 1-100 used before). H2O-Lightning-4B; the question
+readout with the frozen settings and the current-sentence readout of `joined_documents.py`. Decodes: (1) Viterbi with
+the declared length (news 270, PubMed 30); (2) (1)'s switches each moved back to where the current-sentence readout
+first favoured the new state over the old, no further than 128 tokens; (3) Viterbi with switches only into a token
+after ". ! ?" or a line break; (4) (3) then (2), landing on a sentence start. Comparisons: (a) 2 against 1, (b) 3
+against 1; secondary 4 against 1. Token accuracy paired by document and by gold segment; switches placed within 16
+tokens; false switches per 1,000 tokens (`experiments/confirm_sentence.py`).
