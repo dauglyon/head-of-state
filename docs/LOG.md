@@ -1218,3 +1218,25 @@ given in this repository's layout and reproduce from the same code.
 - Conclusion: on unread documents neither change beats the plain question readout on accuracy or on switches placed.
   Counting its readings fractionally lowers false switches by switching less; the per-state cache evidence does not
   improve it. The tuning-document gains did not hold.
+
+**2026-11-27 · New directions from a review session, first trials on saved readings (no GPU)**
+- A Fable sub-agent reviewed the evidence and proposed directions (switches only at sentence starts; a long reading to
+  decide the state and a short one to place the boundary; decoding over non-overlapping blocks; centred windows; a
+  segmental decoder; a mirror reader for lookahead; restarts triggered by settled switches). One-off scripts, not
+  committed; token accuracy · switches placed within 16 tokens · false switches per 1,000.
+- Switches allowed only at sentence starts (a token after ". ! ?" or a line break), question readout, Viterbi with the
+  declared length; Dragon's topic HMM likewise used one sentence per frame (TDT pilot report sec. 2.2): news seed 0
+  0.865 · 15/21 · 3.1 → 0.879 · 15/21 · 2.6; seed 2 0.874 · 10/18 · 2.4 → 0.882 · 10/18 · 1.6; disease sections seed 0
+  0.683 → 0.693, seed 2 0.655 → 0.639; on the confirmation documents (exploratory, already read) news 0.858 · 25/36 · 3.6
+  → 0.862 · 22/36 · 2.8, PubMed 0.783 · 98/132 · 4.9 → 0.805 · 98/132 · 3.2. Fewer false switches, true switches mostly
+  kept.
+- Long reading decides, short reading places: the few-sentences readout's settled switches moved back to where the
+  current-sentence readout first favoured the new state (within 128 tokens), seed-0 streams: news 0.865 · 15/21 → 0.895
+  · 16/21; disease sections 0.683 → 0.690; reviews 0.889 → 0.892.
+- The abandoned restart run (restart when the live decision changes, 3 news streams) scored: 0.854 · 14/21 against 0.865
+  · 15/21, 27 restarts for 21 true switches; restarts on false alarms cost more than they gain.
+- Windowed question readings centred on their window, and non-overlapping blocks decoded at block scale (PubMed dev,
+  WikiSection lag streams): worse than the readings as they are on all six runs.
+- Conclusion: two structural changes help on these documents without losing switches: allowing switches only at
+  sentence starts, and placing switches with the current-sentence readout. Both need the current-sentence readings on
+  more documents before any claim.
