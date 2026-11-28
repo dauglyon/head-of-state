@@ -1201,3 +1201,20 @@ given in this repository's layout and reproduce from the same code.
 - Conclusion: on unread news, counting the question readout fractionally cuts false switches but loses half the true
   switches; adding the per-state caches' evidence does not raise accuracy. The false-switch endpoint alone would have
   read as a gain. PubMed half running.
+
+**2026-11-27 · Combined-readout confirmation, complete (news and PubMed, unread)**
+- PubMed, test abstracts 61-100 (40 abstracts, 17,757 tokens), token accuracy · switches placed within 16 · false
+  switches per 1,000: (1) question readout 0.783 · 98/132 · 4.9; (2) fractional 0.772 · 85/132 · 2.6; (3) fractional
+  plus per-state caches 0.766 · 91/132 · 2.5. News as in the previous entry.
+- Registered tests (second session's fixed script, Holm at 5% over four): false switches, 2 against 1, established on
+  both sets (PubMed 4.9 → 2.6, [-3.2, -1.5], p < 0.0001, 21 abstracts fewer and none more; news p 0.001). Accuracy, 3
+  against 2, not established on either (PubMed -0.006 [-0.026, +0.010], p 0.56; news +0.007, p 0.66). "No accuracy
+  cost" for 2 against 1 not supported on either (lower ends -0.067 news, -0.041 PubMed).
+- Secondary: true switches placed, 2 against 1: news 25 → 13, PubMed 98 → 85, none gained on either. Adding the caches:
+  PubMed 85 → 91 placed (not established); with the cache columns rotated between states accuracy falls (news 0.741-0.822
+  against 0.873), so the evidence is state-directed but does not raise accuracy.
+- Exploratory: the loss sits where the weight fitted per document is small (PubMed median 0.187, minimum 0.000); below
+  the median weight the fractional count loses 2.9 points and placed switches fall 46 → 36.
+- Conclusion: on unread documents neither change beats the plain question readout on accuracy or on switches placed.
+  Counting its readings fractionally lowers false switches by switching less; the per-state cache evidence does not
+  improve it. The tuning-document gains did not hold.
