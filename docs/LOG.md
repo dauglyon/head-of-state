@@ -1265,3 +1265,19 @@ given in this repository's layout and reproduce from the same code.
   beforehand. (b) sentence starts, +0.007, p 0.21, not established; it places 3 fewer true switches (a trade, as with
   the fractional count).
 - PubMed half running; neither variant was tuned on PubMed.
+
+**2026-11-27 · Sentence confirmation, complete (news and PubMed, unread)**
+- PubMed, test abstracts 101-140 (40 abstracts, 16,842 tokens, 128 true switches), token accuracy · placed within 16 ·
+  false per 1,000 · predicted switches: (1) question readout 0.785 · 94/128 · 4.8 · 175; (2) sentence-placed 0.799 ·
+  92/128 · 4.7 · 171; (3) sentence starts 0.801 · 90/128 · 3.1 · 143; (4) both 0.802 · 90/128 · 3.1 · 143.
+- Registered, Holm at 5% over four, with the pre-stated guards: sentence-placed is established on news (+0.021 [+0.009,
+  +0.033], p 0.006; both guards hold: an improvement) and on PubMed (+0.014 [+0.002, +0.024], p 0.010, 35 abstracts
+  better and 2 worse; false switches 4.8 → 4.7, switches placed 94 → 92, gained 2 and lost 4, McNemar p 0.69: by the
+  rule a trade, on a net change of two switches in 128). Sentence starts is not established on either set (PubMed
+  +0.015, p 0.032 against a threshold of 0.025; news p 0.21) and places fewer true switches on both.
+- Exploratory: on PubMed 100 of 173 switches moved, median 2 tokens; the 4 switches lost were moved 18-66 tokens too
+  early. On news 35 of 65 moved, none lost.
+- Conclusion: placing the question readout's switches where the current-sentence readout first turns is the first
+  change confirmed on unread documents: +2.1 points of token accuracy on news and +1.4 on PubMed, false switches not
+  raised, switches placed essentially unchanged (+2 of 43, -2 of 128). It costs one more readout per token (the
+  current-sentence question).
