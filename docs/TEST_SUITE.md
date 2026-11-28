@@ -136,3 +136,10 @@ first favoured the new state over the old, no further than 128 tokens; (3) Viter
 after ". ! ?" or a line break; (4) (3) then (2), landing on a sentence start. Comparisons: (a) 2 against 1, (b) 3
 against 1; secondary 4 against 1. Token accuracy paired by document and by gold segment; switches placed within 16
 tokens; false switches per 1,000 tokens (`experiments/confirm_sentence.py`).
+Its analysis, fixed by the second session before any record was read (`/tmp/hos-stats/k4_confirm_sentence.py`, sha256
+starting ee930368976b5533; scratch, not in the repo): four two-sided tests, Holm-corrected at 5% — per set, token
+accuracy of 2 against 1 and of 3 against 1, sign-flip on per-document differences, 95% intervals by resampling
+documents. Pre-stated guards read with each: the variant places at least as many true switches within 16 tokens as
+decode 1 (G1) and has no more false switches per 1,000 tokens (G2); a variant is an improvement on a set only if its
+accuracy test is established and both guards hold, and a trade otherwise. Secondary: 4 against 1, by gold segment,
+placed and false-switch tests, predicted switch counts.
