@@ -1251,3 +1251,17 @@ given in this repository's layout and reproduce from the same code.
 - Sentence-placed is better than as read on all four tuning sets, with more switches placed each time; sentence starts
   helps news and hurts disease sections on seed 2. Confirmation declared on unread documents (12 seed-4 news streams,
   PubMed test 101-140; docs/TEST_SUITE.md), running.
+
+**2026-11-27 · Sentence confirmation, news (12 unread seed-4 streams)**
+- Commands: `H2O_LIGHTNING_PATH=<checkout> uv run python -I experiments/confirm_sentence.py run --set news`, then `...
+  report` → `results/confirm_sentence.md`; registered tests by a second session's fixed script (sha256 ee930368...,
+  docs/TEST_SUITE.md).
+- Decodes, token accuracy · placed within 16 · false per 1,000 · predicted switches: (1) question readout 0.854 · 27/43
+  · 2.6 · 65; (2) sentence-placed 0.875 · 29/43 · 2.3 · 63; (3) sentence starts 0.861 · 24/43 · 1.9 · 52; (4) both 0.870
+  · 25/43 · 1.8 · 52.
+- Registered: (a) sentence-placed against the question readout, +0.021, by document [+0.009, +0.033], sign-flip p
+  0.006, 9 streams better and 1 worse; established under the four-test Holm family. Both guards hold (placed 27 → 29,
+  none lost; false switches 2.6 → 2.3): an improvement on news, the first on unread documents with the comparison fixed
+  beforehand. (b) sentence starts, +0.007, p 0.21, not established; it places 3 fewer true switches (a trade, as with
+  the fractional count).
+- PubMed half running; neither variant was tuned on PubMed.
